@@ -537,20 +537,22 @@ void VideoForm::updateShowSize(const QSize &newSize)
         m_widthHeightRatio = 1.0f * newSize.width() / newSize.height();
         ui->keepRatioWidget->setWidthHeightRatio(m_widthHeightRatio);
 
-        bool vertical = m_widthHeightRatio < 1.0f ? true : false;
-        QSize showSize = newSize;
+        const bool vertical = m_widthHeightRatio < 1.0f;
         QRect screenRect = getScreenRect();
         if (screenRect.isEmpty()) {
             qWarning() << "getScreenRect is empty";
             return;
         }
-        if (vertical) {
-            showSize.setHeight(qMin(newSize.height(), screenRect.height() - 200));
-            showSize.setWidth(showSize.height() * m_widthHeightRatio);
-        } else {
-            showSize.setWidth(qMin(newSize.width(), screenRect.width() / 2));
-            showSize.setHeight(showSize.width() / m_widthHeightRatio);
-        }
+        // O espelhamento e redimensionavel, mas inicia dentro da ancora
+        // global de 920x620, sem cortar tablet, celular ou barra do Windows.
+        const QMargins skinMargins = m_skin ? getMargins(vertical) : QMargins();
+        const int extraWidth = skinMargins.left() + skinMargins.right();
+        const int extraHeight = skinMargins.top() + skinMargins.bottom();
+        const QSize outerLimit = QSize(920, 620).boundedTo(screenRect.size());
+        const QSize videoLimit(qMax(1, outerLimit.width() - extraWidth),
+                               qMax(1, outerLimit.height() - extraHeight));
+        QSize showSize = newSize.scaled(videoLimit, Qt::KeepAspectRatio);
+        if (showSize.isEmpty()) return;
 
         if (isFullScreen() && qsc::IDeviceManage::getInstance().getDevice(m_serial)) {
             switchFullScreen();
@@ -561,9 +563,8 @@ void VideoForm::updateShowSize(const QSize &newSize)
         }
 
         if (m_skin) {
-            QMargins m = getMargins(vertical);
-            showSize.setWidth(showSize.width() + m.left() + m.right());
-            showSize.setHeight(showSize.height() + m.top() + m.bottom());
+            showSize.rwidth() += extraWidth;
+            showSize.rheight() += extraHeight;
         }
 
         if (showSize != size()) {
