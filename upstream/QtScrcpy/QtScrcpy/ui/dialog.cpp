@@ -117,7 +117,11 @@ Dialog::Dialog(QWidget *parent) : QWidget(parent), ui(new Ui::Widget)
 #endif
 
     on_useSingleModeCheck_clicked();
+    // Abertura em modo janela, ajustada a area util (incluindo barra de tarefas).
     if (QScreen *screen = QGuiApplication::primaryScreen()) {
+        const QSize initialSize = QSize(920, 620).boundedTo(screen->availableGeometry().size());
+        resize(initialSize);
+
         const QRect availableGeometry = screen->availableGeometry();
         move(availableGeometry.x() + (availableGeometry.width() - width()) / 2,
              availableGeometry.y() + (availableGeometry.height() - height()) / 2);
