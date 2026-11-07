@@ -1,6 +1,8 @@
 #include "nativemapperwindow.h"
 
 #include <QApplication>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QBuffer>
 #include <QComboBox>
 #include <QCoreApplication>
@@ -107,8 +109,14 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
                                        const QPixmap &screenshot, QWidget *parent)
     : QDialog(nullptr), m_serial(deviceSerial), m_screen(screenshot) {
     setWindowTitle(QStringLiteral("ScrcpyKeyMapper — ") + m_serial);
-    resize(1290, 810);
-    setMinimumSize(870, 590);
+    // Editor independente; nao assumir tamanho superior ao monitor de 1280x720.
+    const QRect usable = QGuiApplication::primaryScreen()
+        ? QGuiApplication::primaryScreen()->availableGeometry()
+        : QRect(0, 0, 920, 620);
+    const QSize initial = QSize(920, 620).boundedTo(usable.size());
+    setMinimumSize(600, 400);
+    resize(initial);
+    move(usable.center() - rect().center());
     setAttribute(Qt::WA_DeleteOnClose);
 
     auto *outer = new QVBoxLayout(this);
