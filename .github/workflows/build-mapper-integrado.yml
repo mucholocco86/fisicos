@@ -1,0 +1,95 @@
+name: QtScrcpy - ScrcpyKeyMapper integrado offline
+run-name: Compilação final da etapa ScrcpyKeyMapper integrado offline
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev/etapa-barra-espelhamento]
+    paths:
+      - '.github/workflows/build-mapper-integrado.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - name: Baixar fontes da branch
+        uses: actions/checkout@v4
+
+      - name: Instalar Qt6 e módulos nativos necessários ao editor
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: 'qtmultimedia qtwebengine qtwebchannel qttools'
+          cache: true
+
+      - name: Confirmar servidor Android original compatível com QtScrcpy 4.2.1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $serverHeader='upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/server/server.h'
+          $serverFile='upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/scrcpy-server'
+          if (!(Test-Path $serverFile)) { throw 'Servidor original não encontrado' }
+          if (!(Select-String -Path $serverHeader -Pattern 'serverVersion = "4.1"' -SimpleMatch -Quiet)) {
+            throw 'Versão do servidor diferente da original QtScrcpy 4.2.1'
+          }
+          if ((Get-Item $serverFile).Length -ne 733706) {
+            throw 'Servidor não corresponde ao tamanho do pacote scrcpy-server 4.1'
+          }
+          Write-Host 'Utilizando exclusivamente scrcpy-server v4.1 original; scrcpy v5.0.1 não incluído'
+          
+      - name: Preparar ScrcpyKeyMapper para uso local sem internet
+        shell: pwsh
+        run: |
+          ./scripts/prepare-mapper-assets.ps1 -Root upstream/ScrcpyKeyMapper
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          @("vendor/bootstrap.min.css","vendor/bootstrap.bundle.min.js","vendor/konva.min.js","vendor/bootstrap-icons.css") | ForEach-Object {
+            if (!(Test-Path "upstream/ScrcpyKeyMapper/$_")) { throw "Dependência local ausente: $_" }
+          }
+
+      - name: Configurar QtScrcpy
+        shell: pwsh
+        run: |
+          cmake -S upstream/QtScrcpy -B build -G "Visual Studio 17 2022" -A x64 -DQT_DESIRED_VERSION=6 -DCMAKE_PREFIX_PATH="$env:QTDIR" -DCMAKE_BUILD_TYPE=Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compilar aplicativo e janela integrada
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Empacotar ScrcpyKeyMapper original, Qt6 e dependências oficiais
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $src='upstream/QtScrcpy/output/x64/Release'
+          if (!(Test-Path "$src/QtScrcpy.exe")) { throw 'QtScrcpy.exe não localizado' }
+          New-Item -ItemType Directory dist -Force | Out-Null
+          Copy-Item "$src/*" dist -Recurse -Force
+          Copy-Item upstream/QtScrcpy/config dist/config -Recurse -Force
+          Copy-Item upstream/QtScrcpy/keymap dist/keymap -Recurse -Force
+          Copy-Item upstream/ScrcpyKeyMapper dist/ScrcpyKeyMapper -Recurse -Force
+          Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/adb/win/* dist -Force
+          Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/scrcpy-server dist/scrcpy-server -Force
+          & (Get-Command windeployqt.exe -ErrorAction Stop).Source --release --compiler-runtime --no-translations dist/QtScrcpy.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path dist/ScrcpyKeyMapper/vendor/konva.min.js)) { throw 'Konva não empacotado' }
+          if (!(Test-Path dist/ScrcpyKeyMapper/index.html)) { throw 'Editor original não empacotado' }
+          if (!(Test-Path dist/adb.exe)) { throw 'ADB não empacotado' }
+          if (!(Test-Path dist/scrcpy-server)) { throw 'Servidor Android não empacotado' }
+          $webengine = Get-ChildItem dist -File -Recurse -Filter QtWebEngineProcess.exe
+          if (!$webengine) { throw 'QtWebEngineProcess.exe não empacotado' }
+          Compress-Archive -Path 'dist/*' -DestinationPath QtScrcpy-ScrcpyKeyMapper-Integrado-TESTE.zip -Force
+
+      - name: Publicar pacote de teste
+        uses: actions/upload-artifact@v4
+        with:
+          name: QtScrcpy-ScrcpyKeyMapper-Integrado-TESTE
+          path: QtScrcpy-ScrcpyKeyMapper-Integrado-TESTE.zip
+          if-no-files-found: error

@@ -1,0 +1,65 @@
+name: Importar fontes originais — QtScrcpy, KeyMapper, scrcpy 5.0.1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/vendor-upstreams.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vendor-upstreams-main
+  cancel-in-progress: false
+
+jobs:
+  importar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout do repositório novo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Clonar fontes oficiais fixadas, sem alterar o código
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p upstream
+          git clone --depth 1 --branch v4.2.1 https://github.com/barry-ran/QtScrcpy.git upstream/QtScrcpy
+          test "$(git -C upstream/QtScrcpy rev-parse HEAD)" = "f90e2259ea6745c30fc242f501a0210771288f8a"
+          git clone https://github.com/barry-ran/QtScrcpyCore.git upstream/QtScrcpy/QtScrcpy/QtScrcpyCore
+          git -C upstream/QtScrcpy/QtScrcpy/QtScrcpyCore checkout --detach 9e388b8aa48e4e1c2cfdef408ef00c4c6b45c921
+          test "$(git -C upstream/QtScrcpy/QtScrcpy/QtScrcpyCore rev-parse HEAD)" = "9e388b8aa48e4e1c2cfdef408ef00c4c6b45c921"
+          git clone --depth 1 --branch v1.0.1 https://github.com/w4po/ScrcpyKeyMapper.git upstream/ScrcpyKeyMapper
+          test "$(git -C upstream/ScrcpyKeyMapper rev-parse HEAD)" = "022870e2caf905046c8e7502d4053bb5f171c1e4"
+          git clone --depth 1 --branch v5.0.1 https://github.com/Genymobile/scrcpy.git upstream/scrcpy
+          test "$(git -C upstream/scrcpy rev-parse HEAD)" = "a60891aea193d92e7e5c3942700eca63f9d19a5f"
+
+      - name: Remover apenas metadados Git locais dos clones
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/.git
+          rm -rf upstream/QtScrcpy/.git
+          rm -rf upstream/ScrcpyKeyMapper/.git
+          rm -rf upstream/scrcpy/.git
+          test -f upstream/QtScrcpy/CMakeLists.txt
+          test -f upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/CMakeLists.txt
+          test -f upstream/ScrcpyKeyMapper/index.html
+          test -f upstream/scrcpy/meson.build
+
+      - name: Commitar fontes completas no repositório do projeto
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f upstream/QtScrcpy upstream/ScrcpyKeyMapper upstream/scrcpy
+          if ! git diff --cached --quiet; then
+            git commit -m "vendor: importar fontes integrais QtScrcpy 4.2.1, QtScrcpyCore, KeyMapper 1.0.1 e scrcpy 5.0.1"
+            git push origin HEAD:main
+          fi
