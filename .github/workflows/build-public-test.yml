@@ -117,6 +117,10 @@ jobs:
           Copy-Item upstream/QtScrcpy/config dist/config -Recurse -Force
           Copy-Item upstream/QtScrcpy/keymap dist/keymap -Recurse -Force
           Copy-Item upstream/ScrcpyKeyMapper dist/ScrcpyKeyMapper -Recurse -Force
+          # Exemplos e imagens de documentacao nao sao usados em tempo de execucao.
+          Remove-Item dist/ScrcpyKeyMapper/examples -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item dist/ScrcpyKeyMapper/.github -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item dist/ScrcpyKeyMapper/assets/screenshot.png -Force -ErrorAction SilentlyContinue
           Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/adb/win/* dist -Force
           Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/scrcpy-server dist/scrcpy-server -Force
           & (Get-Command windeployqt.exe -ErrorAction Stop).Source --release --compiler-runtime dist/QtScrcpy.exe
@@ -125,12 +129,15 @@ jobs:
           if (!(Test-Path dist/adb.exe)) { throw 'ADB ausente' }
           if (!(Test-Path dist/scrcpy-server)) { throw 'Servidor ausente' }
           if (!(Get-ChildItem dist -Recurse -File -Filter QtWebEngineProcess.exe)) { throw 'QtWebEngineProcess.exe ausente' }
-          Compress-Archive -Path 'dist/*' -DestinationPath QtScrcpy-PTBR-Mapper-TESTE-Windows.zip -Force
+          # Diagnostico de tamanho para identificar DLLs ou dependencias redundantes.
+          Get-ChildItem dist -File -Recurse | Sort-Object Length -Descending | Select-Object -First 35 FullName, Length | Format-Table -AutoSize
+          Get-ChildItem dist -File -Recurse | ForEach-Object { [PSCustomObject]@{ path = $_.FullName.Substring((Resolve-Path dist).Path.Length + 1); bytes = $_.Length } } | ConvertTo-Json -Depth 3 | Set-Content -Encoding utf8 dist/manifesto-tamanhos.json
 
       - name: Publicar artefato ZIP para download
         uses: actions/upload-artifact@v4
         with:
           name: QtScrcpy-PTBR-Mapper-TESTE-Windows
-          path: QtScrcpy-PTBR-Mapper-TESTE-Windows.zip
+          # O proprio actions/upload-artifact gera UM ZIP; nao encapsular ZIP em ZIP.
+          path: dist/
           if-no-files-found: error
           retention-days: 14
