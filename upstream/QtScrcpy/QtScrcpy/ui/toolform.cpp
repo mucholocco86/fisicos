@@ -105,8 +105,7 @@ void ToolForm::setupRemodeledToolbar()
         ui->groupControlBtn, ui->fullScreenBtn,
         m_keymapperBtn, m_gamepadBtn, m_keyboardBtn, m_screenFitBtn,
         ui->volumeUpBtn, ui->volumeDownBtn, m_muteBtn,
-        ui->appSwitchBtn, ui->menuBtn, ui->homeBtn, ui->returnBtn,
-        ui->screenShotBtn, ui->clipboardBtn
+        ui->appSwitchBtn, ui->menuBtn, ui->homeBtn, ui->returnBtn
     };
     for (auto *button : order) {
         layout->removeWidget(button);
@@ -131,6 +130,8 @@ void ToolForm::setupRemodeledToolbar()
     ui->openScreenBtn->hide();
     ui->closeScreenBtn->hide();
     ui->powerBtn->hide();
+    ui->screenShotBtn->hide();
+    ui->clipboardBtn->hide();
 
     setFixedWidth(44);
     setObjectName(QStringLiteral("mirroringSideToolbar"));
