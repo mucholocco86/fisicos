@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
         palette.setColor(QPalette::Text, QColor("#ffffff"));
         palette.setColor(QPalette::Button, QColor("#252525"));
         palette.setColor(QPalette::ButtonText, QColor("#ffffff"));
-        palette.setColor(QPalette::Highlight, QColor("#0078d4"));
+        palette.setColor(QPalette::Highlight, QColor("#bd2026"));
         palette.setColor(QPalette::HighlightedText, QColor("#ffffff"));
         palette.setColor(QPalette::Disabled, QPalette::Text, QColor("#6b6b6b"));
         palette.setColor(QPalette::Disabled, QPalette::ButtonText, QColor("#6b6b6b"));
