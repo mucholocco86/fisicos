@@ -27,8 +27,11 @@ jobs:
           $overlay = Join-Path $env:RUNNER_TEMP 'custom-ptbr'
           New-Item -ItemType Directory -Path $overlay -Force | Out-Null
           Copy-Item upstream -Destination $overlay -Recurse -Force
-          git clone --depth 1 --branch v4.2.1 --recurse-submodules https://github.com/barry-ran/QtScrcpy.git "$env:RUNNER_TEMP/QtScrcpy-original"
+          git config --global 'url.https://github.com/.insteadOf' 'git@github.com:'
+          git clone --depth 1 --branch v4.2.1 https://github.com/barry-ran/QtScrcpy.git "$env:RUNNER_TEMP/QtScrcpy-original"
           if ($LASTEXITCODE -ne 0) { throw 'Falha ao obter QtScrcpy 4.2.1' }
+          git -C "$env:RUNNER_TEMP/QtScrcpy-original" submodule update --init --recursive
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao obter submodulo publico QtScrcpyCore por HTTPS' }
           git clone https://github.com/w4po/ScrcpyKeyMapper.git "$env:RUNNER_TEMP/ScrcpyKeyMapper-original"
           if ($LASTEXITCODE -ne 0) { throw 'Falha ao obter ScrcpyKeyMapper original' }
           git -C "$env:RUNNER_TEMP/ScrcpyKeyMapper-original" checkout 022870e2caf905046c8e7502d4053bb5f171c1e4
