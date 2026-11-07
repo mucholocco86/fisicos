@@ -66,11 +66,11 @@ jobs:
       - name: Instalar Qt para compilacao Windows
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.8.3'
+          version: '5.15.2'
           host: windows
           target: desktop
-          arch: win64_msvc2022_64
-          modules: 'qtmultimedia qtwebengine qtwebchannel qtpositioning'
+          arch: win64_msvc2019_64
+          modules: 'qtwebengine'
           cache: true
 
       - name: Preparar bibliotecas do editor para funcionamento offline
@@ -94,7 +94,7 @@ jobs:
       - name: Configurar compilacao
         shell: pwsh
         run: |
-          cmake -S upstream/QtScrcpy -B build -G "Visual Studio 17 2022" -A x64 -DQT_DESIRED_VERSION=6 -DCMAKE_PREFIX_PATH="$env:QTDIR"
+          cmake -S upstream/QtScrcpy -B build -G "Visual Studio 17 2022" -A x64 -DQT_DESIRED_VERSION=5 -DCMAKE_PREFIX_PATH="$env:QTDIR"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Compilar QtScrcpy com janela integrada
@@ -129,6 +129,15 @@ jobs:
           if (!(Test-Path dist/adb.exe)) { throw 'ADB ausente' }
           if (!(Test-Path dist/scrcpy-server)) { throw 'Servidor ausente' }
           if (!(Get-ChildItem dist -Recurse -File -Filter QtWebEngineProcess.exe)) { throw 'QtWebEngineProcess.exe ausente' }
+          if (!(Test-Path dist/Qt5Core.dll)) { throw 'Qt5 nao encontrado no pacote' }
+          if (Test-Path dist/Qt6Core.dll) { throw 'Qt6 indevidamente incluso' }
+          # Somente recursos de idioma necessarios ao aplicativo PT-BR.
+          $localeDir = 'dist/translations/qtwebengine_locales'
+          if (Test-Path $localeDir) {
+            Get-ChildItem $localeDir -Filter '*.pak' | Where-Object { $_.Name -notin @('pt-BR.pak','en-US.pak') } | Remove-Item -Force
+          }
+          Remove-Item dist/resources/qtwebengine_devtools_resources.pak -Force -ErrorAction SilentlyContinue
+          Get-ChildItem dist -Recurse -File -Include *.lib,*.exp,*.pdb | Remove-Item -Force
           # Diagnostico de tamanho para identificar DLLs ou dependencias redundantes.
           Get-ChildItem dist -File -Recurse | Sort-Object Length -Descending | Select-Object -First 35 FullName, Length | Format-Table -AutoSize
           Get-ChildItem dist -File -Recurse | ForEach-Object { [PSCustomObject]@{ path = $_.FullName.Substring((Resolve-Path dist).Path.Length + 1); bytes = $_.Length } } | ConvertTo-Json -Depth 3 | Set-Content -Encoding utf8 dist/manifesto-tamanhos.json
