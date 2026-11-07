@@ -105,7 +105,7 @@ void MapperAssetHandler::requestStarted(QWebEngineUrlRequestJob *request) {
 
 NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
                                        const QPixmap &screenshot, QWidget *parent)
-    : QDialog(parent), m_serial(deviceSerial), m_screen(screenshot) {
+    : QDialog(nullptr), m_serial(deviceSerial), m_screen(screenshot) {
     setWindowTitle(QStringLiteral("ScrcpyKeyMapper — ") + m_serial);
     resize(1290, 810);
     setMinimumSize(870, 590);
@@ -131,7 +131,7 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
     // Não permitir requisições da página a websites.
     m_view->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, false);
     m_view->settings()->setAttribute(QWebEngineSettings::JavascriptCanOpenWindows, false);
-    m_view->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, false);
+    m_view->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, true);
 
     // Perfil WebEngine exclusivo da janela: não usa o navegador do sistema.
     auto *profile = new QWebEngineProfile(this);
@@ -192,7 +192,7 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
             return;
         }
     }
-    m_view->load(QUrl(QStringLiteral("qtscrcpymapper://app/index.html")));
+    m_view->load(QUrl::fromLocalFile(QDir(base).filePath(QStringLiteral("index.html"))));
 }
 
 QString NativeMapperWindow::screenData() const {
