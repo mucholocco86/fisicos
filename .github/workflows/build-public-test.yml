@@ -1,0 +1,133 @@
+name: QtScrcpy PT-BR integrado - Pacote Windows de testes
+run-name: Gerar QtScrcpy + ScrcpyKeyMapper para teste fisico
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev/qtscrcpy-scrcpykeymapper-teste]
+    paths:
+      - '.github/workflows/build-public-test.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  windows-package:
+    runs-on: windows-2022
+    timeout-minutes: 95
+    steps:
+      - name: Obter customizacoes no fisicos
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Importar fontes originais e aplicar exclusivamente nossas alteracoes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $overlay = Join-Path $env:RUNNER_TEMP 'custom-ptbr'
+          New-Item -ItemType Directory -Path $overlay -Force | Out-Null
+          Copy-Item upstream -Destination $overlay -Recurse -Force
+          git clone --depth 1 --branch v4.2.1 --recurse-submodules https://github.com/barry-ran/QtScrcpy.git "$env:RUNNER_TEMP/QtScrcpy-original"
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao obter QtScrcpy 4.2.1' }
+          git clone https://github.com/w4po/ScrcpyKeyMapper.git "$env:RUNNER_TEMP/ScrcpyKeyMapper-original"
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao obter ScrcpyKeyMapper original' }
+          git -C "$env:RUNNER_TEMP/ScrcpyKeyMapper-original" checkout 022870e2caf905046c8e7502d4053bb5f171c1e4
+          if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel fixar revisao do ScrcpyKeyMapper' }
+          Remove-Item upstream -Recurse -Force
+          New-Item -ItemType Directory upstream/QtScrcpy, upstream/ScrcpyKeyMapper -Force | Out-Null
+          & robocopy "$env:RUNNER_TEMP/QtScrcpy-original" upstream/QtScrcpy /E /XD .git
+          if ($LASTEXITCODE -ge 8) { throw 'Falha copiando QtScrcpy oficial' }
+          & robocopy "$env:RUNNER_TEMP/ScrcpyKeyMapper-original" upstream/ScrcpyKeyMapper /E /XD .git
+          if ($LASTEXITCODE -ge 8) { throw 'Falha copiando ScrcpyKeyMapper oficial' }
+          foreach ($file in (Get-ChildItem (Join-Path $overlay 'upstream') -File -Recurse)) {
+            $rel = $file.FullName.Substring((Join-Path $overlay 'upstream').Length).TrimStart([char]92, [char]47)
+            $dest = Join-Path upstream $rel
+            New-Item -ItemType Directory (Split-Path $dest) -Force | Out-Null
+            Copy-Item $file.FullName $dest -Force
+          }
+          if (!(Test-Path upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/server/server.h)) { throw 'QtScrcpyCore nao presente' }
+          if (!(Test-Path upstream/QtScrcpy/QtScrcpy/ui/nativemapperwindow.cpp)) { throw 'Janela integrada nao presente' }
+          if (!(Test-Path upstream/ScrcpyKeyMapper/js/native-bridge.js)) { throw 'Ponte do mapeador nao presente' }
+          git config user.name "fisicos-build"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add upstream
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "Importar codigo-fonte QtScrcpy 4.2.1 e ScrcpyKeyMapper original com adaptacoes"
+            if ($LASTEXITCODE -ne 0) { throw 'Falha no commit das fontes' }
+            git push origin HEAD:dev/qtscrcpy-scrcpykeymapper-teste
+            if ($LASTEXITCODE -ne 0) { throw 'Falha ao transferir projeto completo ao repositorio' }
+          }
+          $global:LASTEXITCODE = 0
+
+      - name: Instalar Qt para compilacao Windows
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: 'qtmultimedia qtwebengine qtwebchannel qttools'
+          cache: true
+
+      - name: Preparar bibliotecas do editor para funcionamento offline
+        shell: pwsh
+        run: |
+          ./scripts/prepare-mapper-assets.ps1 -Root upstream/ScrcpyKeyMapper
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Conferir versao original do servidor Android
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $serverHeader = 'upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/server/server.h'
+          $serverFile = 'upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/scrcpy-server'
+          if (!(Test-Path $serverFile)) { throw 'scrcpy-server original ausente' }
+          if (!(Select-String -Path $serverHeader -Pattern 'serverVersion = "4.1"' -SimpleMatch -Quiet)) {
+            throw 'Servidor esperado v4.1 nao encontrado'
+          }
+          Write-Host "Servidor Android original: scrcpy-server 4.1"
+
+      - name: Configurar compilacao
+        shell: pwsh
+        run: |
+          cmake -S upstream/QtScrcpy -B build -G "Visual Studio 17 2022" -A x64 -DQT_DESIRED_VERSION=6 -DCMAKE_PREFIX_PATH="$env:QTDIR"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compilar QtScrcpy com janela integrada
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Montar pacote portatil com todas as dependencias
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = 'upstream/QtScrcpy/output/x64/RelWithDebInfo'
+          if (!(Test-Path "$source/QtScrcpy.exe")) {
+            $source = 'upstream/QtScrcpy/output/x64/Release'
+          }
+          if (!(Test-Path "$source/QtScrcpy.exe")) { throw 'QtScrcpy.exe nao gerado' }
+          New-Item -ItemType Directory dist -Force | Out-Null
+          Copy-Item "$source/*" dist -Recurse -Force
+          Copy-Item upstream/QtScrcpy/config dist/config -Recurse -Force
+          Copy-Item upstream/QtScrcpy/keymap dist/keymap -Recurse -Force
+          Copy-Item upstream/ScrcpyKeyMapper dist/ScrcpyKeyMapper -Recurse -Force
+          Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/adb/win/* dist -Force
+          Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/scrcpy-server dist/scrcpy-server -Force
+          & (Get-Command windeployqt.exe -ErrorAction Stop).Source --release --compiler-runtime dist/QtScrcpy.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path dist/ScrcpyKeyMapper/vendor/konva.min.js)) { throw 'Biblioteca Konva ausente' }
+          if (!(Test-Path dist/adb.exe)) { throw 'ADB ausente' }
+          if (!(Test-Path dist/scrcpy-server)) { throw 'Servidor ausente' }
+          if (!(Get-ChildItem dist -Recurse -File -Filter QtWebEngineProcess.exe)) { throw 'QtWebEngineProcess.exe ausente' }
+          Compress-Archive -Path 'dist/*' -DestinationPath QtScrcpy-PTBR-Mapper-TESTE-Windows.zip -Force
+
+      - name: Publicar artefato ZIP para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: QtScrcpy-PTBR-Mapper-TESTE-Windows
+          path: QtScrcpy-PTBR-Mapper-TESTE-Windows.zip
+          if-no-files-found: error
+          retention-days: 14
