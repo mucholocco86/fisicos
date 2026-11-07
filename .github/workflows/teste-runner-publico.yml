@@ -1,0 +1,12 @@
+name: Testar executores do repositorio publico
+on:
+  push:
+    branches: [dev/qtscrcpy-scrcpykeymapper-teste]
+    paths:
+      - '.github/workflows/teste-runner-publico.yml'
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: windows-2022
+    steps:
+      - run: echo "EXECUTOR WINDOWS DISPONIVEL"
