@@ -13,6 +13,7 @@
         }
     });
 
+    window.mapperEmbedded = true;
     window.mapperReady = false;
     window.mapperInitialProfile = null;
 
@@ -51,9 +52,19 @@
         window.nativeMapper.screenData(window.mapperApplyScreenshotData);
     };
 
-    if (window.qt && window.qt.webChannelTransport && window.QWebChannel) {
-        new QWebChannel(window.qt.webChannelTransport, function (channel) {
-            window.nativeMapper = channel.objects.nativeMapper;
-        });
-    }
+    // O transporte do Qt pode ser injetado apos a avaliacao do script.
+    // Repetir a conexao evita que o editor mostre apenas a interface sem
+    // conseguir salvar no diretorio nativo de perfis.
+    (function connectBridge(attempt) {
+        if (window.nativeMapper) return;
+        if (window.qt && window.qt.webChannelTransport && window.QWebChannel) {
+            new QWebChannel(window.qt.webChannelTransport, function (channel) {
+                window.nativeMapper = channel.objects.nativeMapper;
+            });
+        } else if (attempt < 100) {
+            setTimeout(function () { connectBridge(attempt + 1); }, 50);
+        } else {
+            console.error('Ponte de perfis Qt nao disponivel.');
+        }
+    })(0);
 }());
