@@ -52,7 +52,10 @@
 #define COMMON_RECORD_DEF ""
 
 #define COMMON_BITRATE_KEY "BitRate"
-#define COMMON_BITRATE_DEF 2000000
+// Perfil inicial de espelhamento PT-BR: 1080p, H.264 automatico,
+// 8 Mbps, FPS sem limite artificial, descarte de quadros atrasados.
+// Aplicado apenas quando nao existir preferencia do usuario salva.
+#define COMMON_BITRATE_DEF 8000000
 
 #define COMMON_MAX_SIZE_INDEX_KEY "MaxSizeIndex"
 #define COMMON_MAX_SIZE_INDEX_DEF 2
