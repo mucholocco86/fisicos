@@ -137,3 +137,16 @@ A linha `6bcd06b` é **o estado compilado mais recente confirmado na elaboraçã
 - **Pendência maior depois do vídeo demonstrativo do usuário:** problemas específicos do ScrcpyKeyMapper. Problemas menores relatados: um comando de um botão do espelhamento e centralização da imagem. **Não antecipar essas correções.**
 - **Aceitação da rodada atual:** comparar somente painel principal com o QtScrcpy 4.2.1 de fábrica e conferir tradução, botões vermelhos, defaults de performance. Checar que vídeo, barra e editor continuam funcionando como no build-base, sem diferenças de código nesses componentes. CI verde não substitui esse teste físico.
 
+
+## Ajustes finais isolados do espelhamento — 08/11/2026
+
+**Base física aprovada para recuperação:** compilação 42488151270, commit `95f20887f57d9cfe066cdff6704194a4942f5a7b`, preservado na branch imutável de referência `backup/painel-restaurado-aprovado-42488151270`. A branch antiga `backup/qt5-teste-promissor-42436630181` também permanece disponível.
+
+**Solicitação restrita a dois pontos da janela de espelhamento:**
+1. Distância visual de aproximadamente 10 pixels entre o conteúdo espelhado e a barra lateral de 34 pixels. A reserva de layout passa a 44 pixels somente quando a barra aparece, nos caminhos normal e de rotação/skin; barra e comandos ficam inalterados. Código: `ui/videoform.cpp`.
+2. Ao clicar no botão do teclado físico, a barra de espaço podia acionar o último botão focado em vez de ser encaminhada ao Android. Causa provável verificada no código: botões `QPushButton` recebem foco de teclado por padrão. Na barra incorporada, os botões continuam acionáveis pelo mouse, mas passam a `Qt::NoFocus`; o botão que alterna o teclado devolve foco explicitamente à janela `VideoForm`, com `Qt::StrongFocus`, cuja implementação original encaminha `keyPressEvent/keyReleaseEvent` ao dispositivo. Código: `ui/toolform.cpp` e `ui/videoform.cpp`. Isso é hipótese de causa com correção de código, **aguardando validação física** digitando frases com espaços repetidamente após clicar em diferentes botões.
+
+**Exclusões obrigatórias nesta rodada:** nenhuma alteração em `ScrcpyKeyMapper/**`, `nativemapperwindow.*`, `QtScrcpyCore/**`, `dialog.*`, tema PT-BR, layout inicial aprovado e servidor Android v4.1. Próxima etapa só após aprovação: correções da ponte/edição do ScrcpyKeyMapper.
+
+**Validação física requerida:** vídeo retrato/paisagem, centralização e 10px visuais em ambos, teclado físico com frases/espaços em aplicativo Android após clicar alternância e também nos botões laterais; confirmar que comandos de mouse dos botões continuam normais. CI verde não prova essas condições.
+
