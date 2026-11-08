@@ -18,6 +18,16 @@ Este sistema é a **unificação de blocos comprovadamente funcionais**, e não 
 * Todos os pacotes devem ser compilados e entregues via **GitHub Actions**, nunca gerar ZIP local e tratá-lo como entrega.
 * **Não declarar uma funcionalidade funcional/aprovada apenas por passar no compilador.**
 
+## Decisão confirmada — scrcpy 5.0.1 apenas após homologação do sistema atual
+
+**Decisão do proprietário (07/11/2026):** a versão **scrcpy 5.0.1 é uma possibilidade de atualização futura**, a ser examinada **somente depois** de o sistema integrado atual funcionar e ser aprovado em testes físicos. Ela **não faz parte do escopo de alteração presente**, não deve ser copiada sobre o servidor existente e não deve provocar mudança de protocolo agora.
+
+**Base efetivamente escolhida para desenvolver e validar:** QtScrcpy 4.2.1 e seu QtScrcpyCore correspondente, Qt5 conforme a distribuição original de referência, ScrcpyKeyMapper 1.0.1, e **scrcpy-server 4.1 da base QtScrcpy**. Priorizar as funcionalidades originais já demonstradas pelos desenvolvedores e construir apenas as pontes de integração estritamente necessárias.
+
+**Motivo:** a compatibilidade do scrcpy 5.0.1 com o QtScrcpy 4.2.1 ainda não foi comprovada pelo desenvolvedor desse QtScrcpy; não se deve presumir que substituir o executável/servidor por versão mais nova preserve funcionamento. Só considerar essa migração depois de: (1) capturar commit e pacote de referência fisicamente aprovados; (2) comparar diferenças reais de protocolo e APIs; (3) implementar compatibilidade isoladamente em branch de pesquisa; (4) comprovar o comportamento em testes; (5) obter autorização do proprietário para promover a mudança.
+
+**Proibição de regressão:** nenhuma correção da interface atual deve antecipar ou depender do scrcpy 5.0.1. A atualização futura não justifica substituir blocos originais do sistema em validação.
+
 ## 2. Referências visuais e critérios de aceitação
 
 ### 2.1 Janela de espelhamento
