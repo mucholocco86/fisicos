@@ -24,34 +24,31 @@
         window.configManager.loadFromJson(file);
     };
 
-    window.mapperApplyScreenshot = function () {
-        if (!window.nativeMapper || !window.nodeManager) {
-            console.error('A ponte ou o canvas do mapeador nao esta pronta.');
+    // A captura e entregue diretamente pelo Qt em base64, sem navegador e
+    // sem depender de disponibilidade da ponte WebChannel.
+    window.mapperApplyScreenshotData = function (imageData) {
+        if (!imageData || !imageData.startsWith('data:image/png;base64,')) {
+            console.error('Captura de tela vazia ou invalida.');
             return;
         }
-        window.nativeMapper.screenData(function (imageData) {
-            if (!imageData || !imageData.startsWith('data:image/png;base64,')) {
-                console.error('A captura da tela do Android esta vazia.');
-                return;
-            }
-            try {
-                // Usa o screenshot fornecido pelo QtScrcpy inteiramente offline.
-                // Evita fetch(data:), que pode ser bloqueado pelo esquema file://.
-                const raw = atob(imageData.substring(imageData.indexOf(',') + 1));
-                const bytes = new Uint8Array(raw.length);
-                for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-                const file = new File([bytes], 'tela-atual-celular.png',
-                    { type: 'image/png' });
-                const input = document.getElementById('uploadBackground');
-                if (!input) throw new Error('Campo de fundo nao encontrado');
-                const transfer = new DataTransfer();
-                transfer.items.add(file);
-                input.files = transfer.files;
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-            } catch (error) {
-                console.error('Falha ao adicionar captura no canvas:', error);
-            }
-        });
+        try {
+            const raw = atob(imageData.substring(imageData.indexOf(',') + 1));
+            const bytes = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+            const file = new File([bytes], 'tela-atual-celular.png', { type: 'image/png' });
+            const input = document.getElementById('uploadBackground');
+            if (!input) throw new Error('Campo de imagem de fundo nao encontrado');
+            const transfer = new DataTransfer();
+            transfer.items.add(file);
+            input.files = transfer.files;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (error) {
+            console.error('Nao foi possivel inserir a imagem no mapeador:', error);
+        }
+    };
+    window.mapperApplyScreenshot = function () {
+        if (!window.nativeMapper) return;
+        window.nativeMapper.screenData(window.mapperApplyScreenshotData);
     };
 
     if (window.qt && window.qt.webChannelTransport && window.QWebChannel) {
