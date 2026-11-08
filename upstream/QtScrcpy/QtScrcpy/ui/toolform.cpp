@@ -50,14 +50,14 @@ void ToolForm::setupRemodeledToolbar()
     // Reorganiza somente a barra externa do vídeo; os controles originais
     // permanecem implementados, inclusive atalhos de teclado.
     auto *layout = ui->verticalLayout;
-    layout->setContentsMargins(3, 5, 3, 5);
-    layout->setSpacing(2);
+    layout->setContentsMargins(3, 30, 3, 4);
+    layout->setSpacing(11);
 
     auto createButton = [this](const char *name, const QString &hint) {
         auto *button = new QPushButton(this);
         button->setObjectName(QString::fromLatin1(name));
         button->setToolTip(hint);
-        button->setFixedSize(36, 35);
+        button->setFixedSize(28, 28);
         return button;
     };
 
@@ -118,7 +118,11 @@ void ToolForm::setupRemodeledToolbar()
         }
     }
     for (auto *button : order) {
+        button->setFixedSize(28, 28);
         layout->addWidget(button, 0, Qt::AlignHCenter);
+        if (button == ui->fullScreenBtn) layout->addSpacing(28);
+        if (button == m_keyboardBtn) layout->addSpacing(18);
+        if (button == m_muteBtn) layout->addSpacing(18);
     }
 
     // Controles descartados da barra do modo tela, sem excluir o
@@ -133,7 +137,7 @@ void ToolForm::setupRemodeledToolbar()
     ui->screenShotBtn->hide();
     ui->clipboardBtn->hide();
 
-    setFixedWidth(44);
+    setFixedWidth(34);
     setObjectName(QStringLiteral("mirroringSideToolbar"));
     setStyleSheet(QStringLiteral(
         "QWidget#mirroringSideToolbar { background-color: #161616; }"
