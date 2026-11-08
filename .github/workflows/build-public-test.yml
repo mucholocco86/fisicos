@@ -101,7 +101,7 @@ jobs:
           $css = Get-Content upstream/ScrcpyKeyMapper/css/embedded-panel.css -Raw
           $bridge = Get-Content upstream/ScrcpyKeyMapper/js/native-bridge.js -Raw
           if (!$main.Contains('QSize(920, 620)') -or !$main.Contains('mainWindowScroll')) { throw 'Janela principal fora do escopo' }
-          if (!$video.Contains('useEmbeddedMode()') -or !$video.Contains('setGeometry(width() - 44')) { throw 'Barra nao incorporada' }
+          if (!$video.Contains('useEmbeddedMode()') -or !$video.Contains('setGeometry(width() - 34')) { throw 'Barra nao incorporada' }
           if (!$mapper.Contains('mapperApplyScreenshotData')) { throw 'Transferencia direta de screenshot ausente' }
           if (!$bridge.Contains('tela-atual-celular.png')) { throw 'Injecao automatica de screenshot ausente' }
           if (!$css.Contains('grid-template-columns: minmax(165px')) { throw 'Editor sem tres areas visiveis' }
