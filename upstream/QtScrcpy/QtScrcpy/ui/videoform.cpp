@@ -525,7 +525,14 @@ void VideoForm::updateStyleSheet(bool vertical)
                  }
                  )");
     }
-    layout()->setContentsMargins(getMargins(vertical));
+    QMargins margins = getMargins(vertical);
+    // A barra esta incorporada ao VideoForm, e nao mais fora dele.
+    // Reaplicar as margens da skin sem sobrepor os controles ao girar
+    // entre retrato e paisagem.
+    if (show_toolbar && m_toolForm && !isFullScreen()) {
+        margins.setRight(margins.right() + 34);
+    }
+    layout()->setContentsMargins(margins);
 }
 
 QMargins VideoForm::getMargins(bool vertical)
