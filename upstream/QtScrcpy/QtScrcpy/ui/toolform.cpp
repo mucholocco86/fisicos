@@ -367,6 +367,8 @@ void ToolForm::mouseReleaseEvent(QMouseEvent *event)
 
 void ToolForm::mouseMoveEvent(QMouseEvent *event)
 {
+    // A barra incorporada nao pode ser arrastada para fora do frame.
+    if (!(windowFlags() & Qt::Tool)) return;
     if (event->buttons() & Qt::LeftButton) {
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
         move(event->globalPos() - m_dragPosition);
