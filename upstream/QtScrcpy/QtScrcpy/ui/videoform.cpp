@@ -277,9 +277,9 @@ void VideoForm::showToolForm(bool show)
     if (m_skin && !isFullScreen()) {
         margins = getMargins(m_frameSize.height() > m_frameSize.width());
     }
-    margins.setRight(margins.right() + (show ? 44 : 0));
+    margins.setRight(margins.right() + (show ? 34 : 0));
     layout()->setContentsMargins(margins);
-    m_toolForm->setGeometry(width() - 44, 0, 44, height());
+    m_toolForm->setGeometry(width() - 34, 0, 34, height());
     m_toolForm->setVisible(show);
     if (show) m_toolForm->raise();
 }
@@ -558,8 +558,8 @@ void VideoForm::updateShowSize(const QSize &newSize)
         const QMargins skinMargins = m_skin ? getMargins(vertical) : QMargins();
         const int extraWidth = skinMargins.left() + skinMargins.right();
         const int extraHeight = skinMargins.top() + skinMargins.bottom();
-        // Reservar a largura da barra lateral externa (ToolForm: 44px).
-        const int toolbarReserve = show_toolbar ? 44 : 0;
+        // Reservar a largura da barra lateral externa (ToolForm: 34px).
+        const int toolbarReserve = show_toolbar ? 34 : 0;
         const QSize outerLimit = QSize(qMax(1, qMin(920, screenRect.width()) - toolbarReserve),
                                       qMin(620, screenRect.height()));
         const QSize videoLimit(qMax(1, outerLimit.width() - extraWidth),
@@ -968,7 +968,7 @@ void VideoForm::resizeEvent(QResizeEvent *event)
 {
     Q_UNUSED(event)
     if (m_toolForm) {
-        m_toolForm->setGeometry(width() - 44, 0, 44, height());
+        m_toolForm->setGeometry(width() - 34, 0, 34, height());
     }
     if (m_flexDisplay) {
         m_pendingDisplaySize = ui->keepRatioWidget->size();
