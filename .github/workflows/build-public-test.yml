@@ -108,7 +108,9 @@ jobs:
           if (!$config.Contains('COMMON_BITRATE_DEF 8000000')) { throw 'Perfil inicial de video 8 Mbps ausente' }
           Write-Host 'Painel principal: layout oficial 4.2.1, PT-BR e identidade vermelha preservados.'
           if (!$video.Contains('useEmbeddedMode()') -or !$video.Contains('setGeometry(width() - 34')) { throw 'Barra nao incorporada' }
-          if (!$video.Contains('margins.setRight(margins.right() + 34)')) { throw 'Rotacao pode sobrepor a barra interna ao video' }
+          if (!$video.Contains('margins.setRight(margins.right() + 44)') -or !$video.Contains('toolbarReserve = show_toolbar ? 44 : 0')) { throw 'Margem de 10px para barra nao preservada na rotacao' }
+          $tool = Get-Content upstream/QtScrcpy/QtScrcpy/ui/toolform.cpp -Raw
+          if (!$tool.Contains('button->setFocusPolicy(Qt::NoFocus)') -or !$tool.Contains('video->setFocus(Qt::OtherFocusReason)')) { throw 'Botao de teclado pode capturar a barra de espaco' }
           if (!$mapper.Contains('mapperApplyScreenshotData')) { throw 'Transferencia direta de screenshot ausente' }
           if (!$bridge.Contains('tela-atual-celular.png')) { throw 'Injecao automatica de screenshot ausente' }
           if (!$css.Contains('grid-template-columns: minmax(165px')) { throw 'Editor sem tres areas visiveis' }
