@@ -124,3 +124,16 @@ A linha `6bcd06b` é **o estado compilado mais recente confirmado na elaboraçã
 - **Prevenção de regressão:** verificação estática adicionada em `.github/workflows/build-public-test.yml`, commit `0079ca2`.
 - **Escopo mantido:** QtScrcpy 4.2.1 / Qt5 / ScrcpyKeyMapper 1.0.1 / servidor scrcpy 4.1. **scrcpy 5.0.1 não foi introduzido.**
 - **Estado:** alteração de código realizada; **sem validação física de rotação, tablet ou funcionamento da barra**. Registrar o SHA exato da próxima execução e testar T02, T04, T05 e T11 antes de considerar funcional.
+
+## Marco de preservação e correção isolada do painel principal — 08/11/2026
+
+**Confirmação do proprietário:** o pacote de testes [42436630181](https://github.com/mucholocco86/fisicos/actions/runs/42436630181), commit `0079ca27b1f2b87c157d0d6958341ddd66c7e9d6`, apresentou resultado físico muito próximo do ideal no restante do sistema. **Não se deve modificar o espelhamento, barra lateral, controles, editor ou ponte Qt sem evidência específica de falha e autorização para o escopo correspondente.** A versão não está homologada integralmente, mas é a referência de restauração desta etapa.
+
+- **Backup permanente do código testado:** branch `backup/qt5-teste-promissor-42436630181`, criada apontando diretamente para `0079ca27b1f2b87c157d0d6958341ddd66c7e9d6`. Não reescrever, apagar, fazer merge ou avançar essa branch automaticamente.
+- **Requisito específico da tela inicial:** restaurar **layout, organização, comportamento e dimensões originais QtScrcpy 4.2.1**, preservando SOMENTE o idioma PT-BR, tema escuro com botões e controles vermelhos e as escolhas iniciais de espelhamento de alto desempenho.
+- **Causa do defeito do print 08/11:** reparenting das colunas para `QScrollArea` provocou corte da coluna direita; resize 920 × 620 contrariou a janela de fábrica. Correção: remover bloco de reparenting e wrapper, restaurar `on_useSingleModeCheck_clicked()` com `adjustSize()`, restaurar geometria original `1293 × 502` da `dialog.ui`; preservar `onDeviceConnected()` e demais personalizações responsáveis pelo vídeo/mapeamento.
+- **Desempenho inicial:** bitrate default 8 Mbps com resolução 1080p já definida pelo código e codec padrão automático; `config.ini` com `MaxFps=0` e `RenderExpiredFrames=0` permanece inalterado. **Não sobrescrever preferências de instalações já existentes**: somente o valor fallback do bitrate é alterado.
+- **Escopo que NÃO pode ser tocado nesta correção:** `videoform.*`, `toolform.*`, `magneticwidget.*`, `nativemapperwindow.*`, `ScrcpyKeyMapper/**`, `QtScrcpyCore/**`, scrcpy-server e scripts de execução.
+- **Pendência maior depois do vídeo demonstrativo do usuário:** problemas específicos do ScrcpyKeyMapper. Problemas menores relatados: um comando de um botão do espelhamento e centralização da imagem. **Não antecipar essas correções.**
+- **Aceitação da rodada atual:** comparar somente painel principal com o QtScrcpy 4.2.1 de fábrica e conferir tradução, botões vermelhos, defaults de performance. Checar que vídeo, barra e editor continuam funcionando como no build-base, sem diferenças de código nesses componentes. CI verde não substitui esse teste físico.
+
