@@ -1,5 +1,7 @@
 # Plano técnico — QtScrcpy + ScrcpyKeyMapper + scrcpy 5.0.1
 
+> **Atenção — estado histórico:** este plano foi escrito antes das rodadas de integração Qt5. O servidor do pacote de testes é **scrcpy-server 4.1**; scrcpy 5.0.1 permanece pesquisa, sem substituição autorizada. Para o estado de código, falhas e builds reais, prevalecem [Histórico de testes e regressões](HISTORICO-TESTES-E-REGRESSOES.md) e [Matriz de validação](MATRIZ-VALIDACAO.md). Não confundir tarefas planejadas marcadas abaixo com entregas aprovadas.
+
 ## Restrições
 
 1. O programa é uma evolução do **QtScrcpy** original. O gerenciador e renderizador são os do upstream; não executar nem incorporar o antigo WELLS Conect.
