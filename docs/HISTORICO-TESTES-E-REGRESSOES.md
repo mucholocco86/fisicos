@@ -150,3 +150,12 @@ A linha `6bcd06b` é **o estado compilado mais recente confirmado na elaboraçã
 
 **Validação física requerida:** vídeo retrato/paisagem, centralização e 10px visuais em ambos, teclado físico com frases/espaços em aplicativo Android após clicar alternância e também nos botões laterais; confirmar que comandos de mouse dos botões continuam normais. CI verde não prova essas condições.
 
+
+## Regressão confirmada por fotos: vídeo comprimido após margem lateral de 10px — 08/11/2026
+
+**Evidência física do proprietário:** na compilação 42522675149, a imagem do celular ficou mais estreita, contrariando o objetivo do espaço lateral. O erro não estava no valor de margem de 44px em si, mas no cálculo `updateShowSize`: os 44px (34 barra + 10 separação) eram subtraídos da largura disponível **antes** do cálculo do tamanho do vídeo; logo, os 10px de espaço foram retirados do próprio vídeo.
+
+**Correção estritamente localizada:** `upstream/QtScrcpy/QtScrcpy/ui/videoform.cpp`, commit `982c5c5`. Dimensionar a imagem com a reserva anterior de **34px** e adicionar os **10px exclusivamente à largura externa** da janela. Reservar 44px nas margens do layout (34 barra + 10 espaço), preservando o cálculo anterior da imagem em monitores com largura útil suficiente. Em telas pequenas, o tamanho total continua limitado à área disponível. Não modificar barra, teclas, editor, serialização ou núcleo de espelhamento.
+
+**Verificação estática:** workflow atualizado para exigir o orçamento separado de largura do vídeo e recusar a antiga fórmula que descontava os 44px antes do redimensionamento. **Estado: reteste físico pendente**; comparar largura da imagem com a referência aprovada 42488151270 e confirmar separação visual sem apertar ou distorcer a imagem.
+
