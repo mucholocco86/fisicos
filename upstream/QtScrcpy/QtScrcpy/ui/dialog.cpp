@@ -116,32 +116,8 @@ Dialog::Dialog(QWidget *parent) : QWidget(parent), ui(new Ui::Widget)
     }
 #endif
 
-    // A interface original possui duas colunas largas. A area rolavel
-    // preserva todos os controles sem forcar a janela principal a ultrapassar
-    // o tamanho solicitado de 920x620.
-    auto *contentHost = new QWidget(this);
-    auto *contentLayout = new QHBoxLayout(contentHost);
-    contentLayout->setContentsMargins(3, 3, 3, 3);
-    contentLayout->setSpacing(6);
-    ui->horizontalLayout_11->removeWidget(ui->leftWidget);
-    ui->horizontalLayout_11->removeWidget(ui->rightWidget);
-    ui->leftWidget->setParent(contentHost);
-    ui->rightWidget->setParent(contentHost);
-    contentLayout->addWidget(ui->leftWidget, 1);
-    contentLayout->addWidget(ui->rightWidget, 2);
-    auto *mainScroll = new QScrollArea(this);
-    mainScroll->setObjectName(QStringLiteral("mainWindowScroll"));
-    mainScroll->setFrameShape(QFrame::NoFrame);
-    mainScroll->setWidgetResizable(true);
-    mainScroll->setWidget(contentHost);
-    mainScroll->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    ui->horizontalLayout_11->addWidget(mainScroll);
     on_useSingleModeCheck_clicked();
-    // Abertura em modo janela, ajustada a area util (incluindo barra de tarefas).
     if (QScreen *screen = QGuiApplication::primaryScreen()) {
-        const QSize initialSize = QSize(920, 620).boundedTo(screen->availableGeometry().size());
-        resize(initialSize);
-
         const QRect availableGeometry = screen->availableGeometry();
         move(availableGeometry.x() + (availableGeometry.width() - width()) / 2,
              availableGeometry.y() + (availableGeometry.height() - height()) / 2);
@@ -1547,7 +1523,7 @@ void Dialog::on_useSingleModeCheck_clicked()
         ui->rightWidget->show();
     }
 
-    // Não usar adjustSize(): os controles internos não podem expandir a janela.
+    adjustSize();
 }
 
 void Dialog::on_serialBox_currentIndexChanged(const QString &arg1)
