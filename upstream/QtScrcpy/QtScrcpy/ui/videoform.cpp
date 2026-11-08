@@ -273,7 +273,12 @@ void VideoForm::showToolForm(bool show)
     }
     // Uma unica janela: video e controles na mesma superficie.
     // O painel original continua recebendo os sinais/comandos nativos.
-    layout()->setContentsMargins(0, 0, show ? 44 : 0, 0);
+    QMargins margins;
+    if (m_skin && !isFullScreen()) {
+        margins = getMargins(m_frameSize.height() > m_frameSize.width());
+    }
+    margins.setRight(margins.right() + (show ? 44 : 0));
+    layout()->setContentsMargins(margins);
     m_toolForm->setGeometry(width() - 44, 0, 44, height());
     m_toolForm->setVisible(show);
     if (show) m_toolForm->raise();
