@@ -100,7 +100,13 @@ jobs:
           $mapper = Get-Content upstream/QtScrcpy/QtScrcpy/ui/nativemapperwindow.cpp -Raw
           $css = Get-Content upstream/ScrcpyKeyMapper/css/embedded-panel.css -Raw
           $bridge = Get-Content upstream/ScrcpyKeyMapper/js/native-bridge.js -Raw
-          if (!$main.Contains('QSize(920, 620)') -or !$main.Contains('mainWindowScroll')) { throw 'Janela principal fora do escopo' }
+          $mainUi = Get-Content upstream/QtScrcpy/QtScrcpy/ui/dialog.ui -Raw
+          $config = Get-Content upstream/QtScrcpy/QtScrcpy/util/config.cpp -Raw
+          if ($main.Contains('mainWindowScroll') -or $main.Contains('const QSize initialSize = QSize(920, 620)')) { throw 'Regressao: painel principal ainda contem redimensionamento forçado' }
+          if (!$mainUi.Contains('<width>1293</width>') -or !$mainUi.Contains('<height>502</height>')) { throw 'Tamanho original de fabrica do painel principal nao restaurado' }
+          if (!$main.Contains('    adjustSize();')) { throw 'Comportamento oficial do modo simples nao restaurado' }
+          if (!$config.Contains('COMMON_BITRATE_DEF 8000000')) { throw 'Perfil inicial de video 8 Mbps ausente' }
+          Write-Host 'Painel principal: layout oficial 4.2.1, PT-BR e identidade vermelha preservados.'
           if (!$video.Contains('useEmbeddedMode()') -or !$video.Contains('setGeometry(width() - 34')) { throw 'Barra nao incorporada' }
           if (!$video.Contains('margins.setRight(margins.right() + 34)')) { throw 'Rotacao pode sobrepor a barra interna ao video' }
           if (!$mapper.Contains('mapperApplyScreenshotData')) { throw 'Transferencia direta de screenshot ausente' }
