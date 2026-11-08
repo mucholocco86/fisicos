@@ -569,10 +569,16 @@ void VideoForm::updateShowSize(const QSize &newSize)
         const QMargins skinMargins = m_skin ? getMargins(vertical) : QMargins();
         const int extraWidth = skinMargins.left() + skinMargins.right();
         const int extraHeight = skinMargins.top() + skinMargins.bottom();
-        // Reservar 34px da barra incorporada e 10px de respiro visual.
-        const int toolbarReserve = show_toolbar ? 44 : 0;
-        const QSize outerLimit = QSize(qMax(1, qMin(920, screenRect.width()) - toolbarReserve),
-                                      qMin(620, screenRect.height()));
+        // Dimensionar a IMAGEM com a reserva original de 34px, sem
+        // descontar os 10px adicionais do video. Esses 10px ampliam a
+        // largura EXTERNA da janela e servem apenas como separacao visual.
+        // Em monitores muito estreitos, respeitar a area disponivel.
+        const int toolbarWidth = show_toolbar ? 34 : 0;
+        const int toolbarGap = show_toolbar ? 10 : 0;
+        const int toolbarReserve = toolbarWidth + toolbarGap;
+        const int outerWidth = qMin(920, qMax(1, screenRect.width() - toolbarGap));
+        const QSize outerLimit(qMax(1, outerWidth - toolbarWidth),
+                               qMin(620, screenRect.height()));
         const QSize videoLimit(qMax(1, outerLimit.width() - extraWidth),
                                qMax(1, outerLimit.height() - extraHeight));
         QSize showSize = newSize.scaled(videoLimit, Qt::KeepAspectRatio);
