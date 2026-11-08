@@ -64,7 +64,7 @@ export class ConfigManager {
 
             // No QtScrcpy integrado, use o mesmo JSON nativo e salve na
             // pasta keymap do programa, sem criar arquivos de download.
-            if (window.location.protocol === 'qtscrcpymapper:' && !window.nativeMapper) {
+            if (window.mapperEmbedded && !window.nativeMapper) {
                 alert('A integração com o QtScrcpy ainda não está disponível.');
                 return;
             }
