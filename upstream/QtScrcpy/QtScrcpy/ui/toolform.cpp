@@ -299,6 +299,10 @@ void ToolForm::updateCameraMode()
     ui->openScreenBtn->hide();
     ui->closeScreenBtn->hide();
     ui->powerBtn->hide();
+    // setSerial() executa updateCameraMode() depois da montagem da barra:
+    // nao permitir que o botao extra da area de transferencia reapareca.
+    ui->clipboardBtn->hide();
+    ui->screenShotBtn->hide();
     if (m_keymapperBtn) m_keymapperBtn->setVisible(!camera);
     if (m_gamepadBtn) m_gamepadBtn->setVisible(!camera);
     if (m_keyboardBtn) m_keyboardBtn->setVisible(!camera);
