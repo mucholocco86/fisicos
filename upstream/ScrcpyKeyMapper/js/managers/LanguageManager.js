@@ -1,6 +1,6 @@
 export class LanguageManager {
     constructor() {
-        this.currentLanguage = localStorage.getItem('language') || 'pt_BR';
+        this.currentLanguage = 'pt_BR'; // Distribuicao oficial do projeto sempre inicia em PT-BR.
         this.translations = {};
         this.rtlLanguages = ['ar'];
         this.init();
