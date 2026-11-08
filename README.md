@@ -1,5 +1,7 @@
 # QtScrcpy — versão personalizada (projeto principal)
 
+> **Registro atual de implementação e testes (07/11/2026):** a descrição e o plano originais abaixo contêm metas históricas, não comprovam o que está implementado. Para continuar, consultar primeiro [Histórico de testes e regressões](docs/HISTORICO-TESTES-E-REGRESSOES.md) e [Matriz de validação física](docs/MATRIZ-VALIDACAO.md). O pacote experimental atual compila com **Qt 5.15.2**, utiliza **scrcpy-server 4.1** e **não está homologado funcionalmente**. O scrcpy 5.0.1 citado abaixo é referência de pesquisa, não a versão em uso no artifact de testes.
+
 Este repositório foi **reiniciado a pedido do proprietário** em 7 de novembro de 2026. A versão anterior, WELLS Conect, encontra-se apenas em `archive/wells-conect-2026-11-07` e não faz parte da aplicação atual.
 
 ## Fontes originais importadas integralmente
