@@ -91,6 +91,22 @@ jobs:
           }
           Write-Host "Servidor Android original: scrcpy-server 4.1"
 
+      - name: Conferir requisitos de interface antes de compilar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $main = Get-Content upstream/QtScrcpy/QtScrcpy/ui/dialog.cpp -Raw
+          $video = Get-Content upstream/QtScrcpy/QtScrcpy/ui/videoform.cpp -Raw
+          $mapper = Get-Content upstream/QtScrcpy/QtScrcpy/ui/nativemapperwindow.cpp -Raw
+          $css = Get-Content upstream/ScrcpyKeyMapper/css/embedded-panel.css -Raw
+          $bridge = Get-Content upstream/ScrcpyKeyMapper/js/native-bridge.js -Raw
+          if (!$main.Contains('QSize(920, 620)') -or !$main.Contains('mainWindowScroll')) { throw 'Janela principal fora do escopo' }
+          if (!$video.Contains('useEmbeddedMode()') -or !$video.Contains('setGeometry(width() - 44')) { throw 'Barra nao incorporada' }
+          if (!$mapper.Contains('mapperApplyScreenshotData')) { throw 'Transferencia direta de screenshot ausente' }
+          if (!$bridge.Contains('tela-atual-celular.png')) { throw 'Injecao automatica de screenshot ausente' }
+          if (!$css.Contains('grid-template-columns: minmax(165px')) { throw 'Editor sem tres areas visiveis' }
+          Write-Host 'Verificacoes estaticas de interface aprovadas. Teste fisico permanece obrigatorio.'
+
       - name: Configurar compilacao
         shell: pwsh
         run: |
