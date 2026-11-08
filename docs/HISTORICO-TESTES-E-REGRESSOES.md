@@ -116,3 +116,11 @@ A linha `6bcd06b` é **o estado compilado mais recente confirmado na elaboraçã
 ## 8. Critério de conclusão
 
 É necessário comprovar visual e funcionalmente, em conjunto: 920 × 620 inicial e redimensionamento coerente; única janela integrada de espelhamento com botões do mockup; vídeo intacto ao fechar editor; screenshot automático visível no canvas; organização visual do editor equivalente à referência WASD+; criação/salvamento/reabertura/execução de perfis nativos; gamepad/teclado remoto; interface PT-BR; configurações padrão de performance; pacote portátil sem recursos desnecessários. **Até lá: status de desenvolvimento, mesmo com GitHub Actions verde.**
+
+## Continuidade — correção preventiva da rotação (07/11/2026)
+
+- **Problema detectado por inspeção de código:** `VideoForm::updateStyleSheet()` redefinia as margens da área de vídeo com `getMargins(vertical)` ao atualizar a skin, potencialmente apagando a reserva de **34 px** para a barra lateral agora incorporada. Rotação retrato/paisagem ou ajuste de tamanho poderiam sobrepor os controles ao vídeo.
+- **Mudança localizada:** preservar `getMargins(vertical)` e adicionar novamente a reserva da barra quando ela estiver presente, habilitada e fora de tela cheia; arquivo `upstream/QtScrcpy/QtScrcpy/ui/videoform.cpp`, commit `b9d3ec3`.
+- **Prevenção de regressão:** verificação estática adicionada em `.github/workflows/build-public-test.yml`, commit `0079ca2`.
+- **Escopo mantido:** QtScrcpy 4.2.1 / Qt5 / ScrcpyKeyMapper 1.0.1 / servidor scrcpy 4.1. **scrcpy 5.0.1 não foi introduzido.**
+- **Estado:** alteração de código realizada; **sem validação física de rotação, tablet ou funcionamento da barra**. Registrar o SHA exato da próxima execução e testar T02, T04, T05 e T11 antes de considerar funcional.
