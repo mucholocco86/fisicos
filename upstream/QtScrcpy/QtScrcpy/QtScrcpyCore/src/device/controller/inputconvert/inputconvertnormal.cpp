@@ -111,6 +111,30 @@ void InputConvertNormal::keyEvent(const QKeyEvent *from, const QSize &frameSize,
         return;
     }
 
+    // Digitação: preservar o caractere produzido pelo layout do Windows (ABNT2),
+    // em vez de converter pontuação e caracteres PT-BR para teclas Android US.
+    // O modo de jogo mantém seu próprio conversor e seus atalhos.
+    // Atalhos com Ctrl/Alt/Meta continuam como eventos de tecla nativos.
+    const QString typedText = from->text();
+    const bool shortcut = from->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
+    const bool printableText = !typedText.isEmpty() && typedText.at(0).isPrint();
+    const bool specialText = printableText &&
+        (typedText.at(0).unicode() > 0x7f ||
+         (!typedText.at(0).isLetterOrNumber() && typedText != QStringLiteral(" ")));
+    if (!shortcut && specialText) {
+        // O servidor scrcpy 4.1 já suporta CMT_INJECT_TEXT (UTF-8).
+        // Enviar apenas no KeyPress evita duplicações no KeyRelease.
+        if (QEvent::KeyPress == from->type()) {
+            ControlMsg *msg = new ControlMsg(ControlMsg::CMT_INJECT_TEXT);
+            if (msg) {
+                QString text = typedText;
+                msg->setInjectTextMsgData(text);
+                sendControlMsg(msg);
+            }
+        }
+        return;
+    }
+
     // key code
     AndroidKeycode keyCode = convertKeyCode(from->key(), from->modifiers());
     if (AKEYCODE_UNKNOWN == keyCode) {
