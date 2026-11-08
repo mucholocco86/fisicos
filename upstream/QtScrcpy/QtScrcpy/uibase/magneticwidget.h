@@ -33,6 +33,8 @@ public:
     ~MagneticWidget();
 
     bool isAdsorbed();
+    // Usa o mesmo painel de botoes como filho interno, sem janela flutuante.
+    void useEmbeddedMode();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
