@@ -165,16 +165,21 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
             m_status->setText(QStringLiteral("Erro ao abrir recursos locais do mapeador"));
             return;
         }
+        // A imagem e enviada diretamente ao documento ja carregado.
+        // O WebChannel permanece para salvar perfis, mas nao bloqueia a captura.
+        const QString imageData = screenData();
         const QString script = QStringLiteral(R"JS(
-            (function waitMapper() {
-                if (!window.nodeManager || !window.mapperApplyScreenshot || !window.nativeMapper) {
-                    setTimeout(waitMapper, 60); return;
+            (function waitMapper(attempt) {
+                if (!window.nodeManager || !window.mapperApplyScreenshotData) {
+                    if (attempt < 160) setTimeout(function(){ waitMapper(attempt + 1); }, 40);
+                    else console.error('Canvas do mapeador nao inicializado.');
+                    return;
                 }
-                window.mapperApplyScreenshot();
+                window.mapperApplyScreenshotData('%1');
                 window.mapperReady = true;
                 if (window.mapperInitialProfile) window.mapperLoadProfile(window.mapperInitialProfile);
-            })();
-        )JS");
+            })(0);
+        )JS").arg(imageData);
         m_view->page()->runJavaScript(script);
         loadSelectedProfile();
     });
