@@ -90,6 +90,11 @@ void ToolForm::setupRemodeledToolbar()
     });
     connect(m_keyboardBtn, &QPushButton::clicked, this, [this]() {
         togglePhysicalKeyboard();
+        // Devolve o foco de teclado a janela que encaminha eventos ao Android.
+        // O botao nao pode reter o foco nem consumir a barra de espaco.
+        if (auto *video = qobject_cast<VideoForm *>(parentWidget())) {
+            video->setFocus(Qt::OtherFocusReason);
+        }
         emit physicalKeyboardRequested(m_serial);
     });
 
@@ -119,6 +124,9 @@ void ToolForm::setupRemodeledToolbar()
     }
     for (auto *button : order) {
         button->setFixedSize(28, 28);
+        // Evita que o Space acione o ultimo botao clicado durante a digitacao
+        // no Android. Os controles continuam clicaveis pelo mouse.
+        button->setFocusPolicy(Qt::NoFocus);
         layout->addWidget(button, 0, Qt::AlignHCenter);
         if (button == ui->fullScreenBtn) layout->addSpacing(28);
         if (button == m_keyboardBtn) layout->addSpacing(18);
