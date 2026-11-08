@@ -1305,14 +1305,17 @@ void Dialog::onDeviceConnected(bool success, const QString &serial, const QStrin
     if (name.isEmpty()) {
         name = Config::getInstance().getTitle();
     }
-    videoForm->setWindowTitle(name + "-" + serial);
+    videoForm->setWindowTitle(QStringLiteral("Conect - ") + serial);
     videoForm->updateShowSize(size);
 
     bool deviceVer = size.height() > size.width();
     QRect rc = Config::getInstance().getRect(serial);
     bool rcVer = rc.height() > rc.width();
     // same width/height rate
-    if (rc.isValid() && (deviceVer == rcVer)) {
+    if (rc.isValid() && (deviceVer == rcVer)
+        && rc.width() <= 920 && rc.height() <= 620
+        && QGuiApplication::primaryScreen()
+        && QGuiApplication::primaryScreen()->availableGeometry().contains(rc)) {
         // mark: resize is for fix setGeometry magneticwidget bug
         videoForm->resize(rc.size());
         videoForm->setGeometry(rc);
