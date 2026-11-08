@@ -266,12 +266,17 @@ void VideoForm::showToolForm(bool show)
 {
     if (!m_toolForm) {
         m_toolForm = new ToolForm(this, ToolForm::AP_OUTSIDE_RIGHT);
+        m_toolForm->useEmbeddedMode();
         m_toolForm->setSerial(m_serial);
         connect(m_toolForm, &ToolForm::keyMapperRequested,
                 this, &VideoForm::keyMapperRequested);
     }
-    m_toolForm->move(pos().x() + geometry().width(), pos().y() + 30);
+    // Uma unica janela: video e controles na mesma superficie.
+    // O painel original continua recebendo os sinais/comandos nativos.
+    layout()->setContentsMargins(0, 0, show ? 44 : 0, 0);
+    m_toolForm->setGeometry(width() - 44, 0, 44, height());
     m_toolForm->setVisible(show);
+    if (show) m_toolForm->raise();
 }
 
 void VideoForm::moveCenter()
@@ -569,6 +574,8 @@ void VideoForm::updateShowSize(const QSize &newSize)
             showSize.rwidth() += extraWidth;
             showSize.rheight() += extraHeight;
         }
+        // A barra agora pertence ao proprio frame; incluir sua largura.
+        showSize.rwidth() += toolbarReserve;
 
         if (showSize != size()) {
             resize(showSize);
@@ -932,15 +939,32 @@ void VideoForm::showEvent(QShowEvent *event)
 {
     Q_UNUSED(event)
     if (!isFullScreen() && this->show_toolbar) {
-        QTimer::singleShot(500, this, [this](){
+        QTimer::singleShot(0, this, [this](){
             showToolForm(this->show_toolbar);
         });
     }
+#ifdef Q_OS_WIN32
+    // Titulo nativo escuro, com minimizar/maximizar/fechar do Windows.
+    HMODULE dwm = LoadLibraryW(L"dwmapi.dll");
+    if (dwm) {
+        using DarkTitleFn = HRESULT (WINAPI *)(HWND, DWORD, LPCVOID, DWORD);
+        auto darkTitle = reinterpret_cast<DarkTitleFn>(
+            GetProcAddress(dwm, "DwmSetWindowAttribute"));
+        if (darkTitle) {
+            BOOL dark = TRUE;
+            darkTitle(reinterpret_cast<HWND>(winId()), 20, &dark, sizeof(dark));
+        }
+        FreeLibrary(dwm);
+    }
+#endif
 }
 
 void VideoForm::resizeEvent(QResizeEvent *event)
 {
     Q_UNUSED(event)
+    if (m_toolForm) {
+        m_toolForm->setGeometry(width() - 44, 0, 44, height());
+    }
     if (m_flexDisplay) {
         m_pendingDisplaySize = ui->keepRatioWidget->size();
         if (!m_pendingDisplaySize.isEmpty()) {
