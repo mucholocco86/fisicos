@@ -26,3 +26,54 @@ body { overflow: hidden; background: #f4f5f7; }
   #mapperLeftSections .mapping-type-item { padding: 5px 3px; }
   .wrapper nav.navbar { flex-wrap: wrap; }
 }
+
+/* Layout fixo em tres regioes para o editor DESKTOP integrado.
+   As regras @media do ScrcpyKeyMapper online empilham tudo a 1200px;
+   isso fazia o mapa desaparecer abaixo das ferramentas na janela 920x620. */
+html, body { margin: 0; height: 100%; overflow: hidden !important; }
+.wrapper { height: 100vh !important; overflow: hidden !important; }
+.wrapper > .container-fluid { height: 100% !important; padding: 0 5px !important; }
+.wrapper nav.navbar {
+    min-height: 0 !important; height: auto !important; max-height: 105px;
+    overflow-x: auto; overflow-y: hidden; padding: 4px !important;
+    flex-wrap: wrap !important; gap: 3px;
+}
+.wrapper nav.navbar .btn-group { flex-wrap: nowrap !important; gap: 0 !important; margin: 0 !important; }
+.wrapper nav.navbar .btn-group .btn { flex: none !important; min-width: 0 !important; }
+.wrapper main.row {
+    display: grid !important;
+    grid-template-columns: minmax(165px, 22%) minmax(0, 1fr) minmax(190px, 25%);
+    flex-direction: row !important; flex: 1 1 0 !important;
+    height: auto !important; min-height: 0 !important;
+    width: 100% !important; max-width: 100% !important;
+    gap: 4px; overflow: hidden;
+    margin: 0 !important;
+}
+.wrapper main.row > * {
+    float: none !important; flex: none !important;
+    width: auto !important; min-width: 0 !important; max-width: none !important;
+    height: 100% !important; min-height: 0 !important;
+    padding: 2px !important; overflow-y: auto !important;
+}
+.wrapper main.row > div:nth-child(2) { overflow: hidden !important; }
+#canvasContainer {
+    position: relative; width: 100% !important;
+    height: 100% !important; min-height: 0 !important;
+    margin: 0 !important; overflow: hidden !important;
+}
+#mappingCanvas { width: 100% !important; height: 100% !important; }
+.mapper-left-sidebar { overflow-y: auto !important; }
+.right-section-container {
+    display: flex !important; flex-direction: column !important;
+    overflow-x: hidden !important; overflow-y: auto !important;
+    padding: 0 !important; gap: 3px !important;
+    height: 100% !important; scroll-snap-type: none !important;
+}
+.right-section-container > .card {
+    flex: none !important; min-width: 0 !important;
+    margin: 0 !important; scroll-snap-align: none !important;
+}
+.right-section-container .collapse { display: block; }
+.right-section-container .collapse:not(.show) { display: none; }
+#mapperLeftSections .mapping-types-list { display: grid !important; grid-template-columns: 1fr !important; }
+.wrapper footer.footer { display: none; }
