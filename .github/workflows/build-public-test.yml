@@ -110,6 +110,9 @@ jobs:
           if (!$video.Contains('useEmbeddedMode()') -or !$video.Contains('setGeometry(width() - 34')) { throw 'Barra nao incorporada' }
           if (!$video.Contains('margins.setRight(margins.right() + 44)') -or !$video.Contains('const int toolbarWidth = show_toolbar ? 34 : 0;') -or !$video.Contains('const int toolbarGap = show_toolbar ? 10 : 0;') -or !$video.Contains('const int toolbarReserve = toolbarWidth + toolbarGap;')) { throw 'Margem de 10px para barra nao preservada na rotacao' }
           if (!$video.Contains('const QSize outerLimit(qMax(1, outerWidth - toolbarWidth)') -or $video.Contains('qMin(920, screenRect.width()) - toolbarReserve')) { throw 'Regressao: largura do video comprimida pelo espaco de 10px' }
+          $input = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/controller/inputconvert/inputconvertnormal.cpp -Raw
+          if (!$input.Contains('typedText.at(0).unicode() > 0x7f') -or !$input.Contains('ControlMsg::CMT_INJECT_TEXT') -or !$input.Contains('if (!shortcut && specialText)')) { throw 'Regressao: texto PT-BR nao usa protocolo nativo do scrcpy' }
+          Write-Host 'Entrada PT-BR: texto Unicode e pontuacao preservados no canal de controle scrcpy.'
           $tool = Get-Content upstream/QtScrcpy/QtScrcpy/ui/toolform.cpp -Raw
           if (!$tool.Contains('button->setFocusPolicy(Qt::NoFocus)') -or !$tool.Contains('video->setFocus(Qt::OtherFocusReason)')) { throw 'Botao de teclado pode capturar a barra de espaco' }
           if (!$mapper.Contains('mapperApplyScreenshotData')) { throw 'Transferencia direta de screenshot ausente' }
