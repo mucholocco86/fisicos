@@ -34,6 +34,9 @@
 VideoForm::VideoForm(bool framelessWindow, bool skin, bool showToolbar, int decodeMode, QWidget *parent) : QWidget(parent), ui(new Ui::videoForm), m_skin(skin), m_decodeMode(decodeMode)
 {
     ui->setupUi(this);
+    // O teclado fisico deve permanecer direcionado ao espelhamento, mesmo
+    // depois de o usuario interagir com os botoes da barra incorporada.
+    setFocusPolicy(Qt::StrongFocus);
     m_flexResizeTimer.setSingleShot(true);
     m_flexResizeTimer.setInterval(300);
     connect(&m_flexResizeTimer, &QTimer::timeout, this, [this]() {
@@ -277,7 +280,8 @@ void VideoForm::showToolForm(bool show)
     if (m_skin && !isFullScreen()) {
         margins = getMargins(m_frameSize.height() > m_frameSize.width());
     }
-    margins.setRight(margins.right() + (show ? 34 : 0));
+    // Barra de 34px + separacao visual de 10px, sem sobrepor o video.
+    margins.setRight(margins.right() + (show ? 44 : 0));
     layout()->setContentsMargins(margins);
     m_toolForm->setGeometry(width() - 34, 0, 34, height());
     m_toolForm->setVisible(show);
@@ -530,7 +534,7 @@ void VideoForm::updateStyleSheet(bool vertical)
     // Reaplicar as margens da skin sem sobrepor os controles ao girar
     // entre retrato e paisagem.
     if (show_toolbar && m_toolForm && !isFullScreen()) {
-        margins.setRight(margins.right() + 34);
+        margins.setRight(margins.right() + 44);
     }
     layout()->setContentsMargins(margins);
 }
@@ -565,8 +569,8 @@ void VideoForm::updateShowSize(const QSize &newSize)
         const QMargins skinMargins = m_skin ? getMargins(vertical) : QMargins();
         const int extraWidth = skinMargins.left() + skinMargins.right();
         const int extraHeight = skinMargins.top() + skinMargins.bottom();
-        // Reservar a largura da barra lateral externa (ToolForm: 34px).
-        const int toolbarReserve = show_toolbar ? 34 : 0;
+        // Reservar 34px da barra incorporada e 10px de respiro visual.
+        const int toolbarReserve = show_toolbar ? 44 : 0;
         const QSize outerLimit = QSize(qMax(1, qMin(920, screenRect.width()) - toolbarReserve),
                                       qMin(620, screenRect.height()));
         const QSize videoLimit(qMax(1, outerLimit.width() - extraWidth),
