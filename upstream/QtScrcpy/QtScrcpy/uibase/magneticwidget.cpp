@@ -21,6 +21,14 @@ MagneticWidget::~MagneticWidget()
     }
 }
 
+void MagneticWidget::useEmbeddedMode()
+{
+    m_adsorbed = false;
+    m_adsorbPos = AdsorbPositions();
+    if (m_adsorbWidget) m_adsorbWidget->removeEventFilter(this);
+    setWindowFlags(Qt::Widget);
+}
+
 bool MagneticWidget::isAdsorbed()
 {
     return m_adsorbed;
