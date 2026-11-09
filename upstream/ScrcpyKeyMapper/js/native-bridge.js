@@ -48,9 +48,30 @@
         }
     };
     window.mapperApplyScreenshot = function () {
-        if (!window.nativeMapper) return;
-        window.nativeMapper.screenData(window.mapperApplyScreenshotData);
+        if (!window.nativeMapper) {
+            console.error('Ponte Qt nao inicializada; tente novamente.');
+            return;
+        }
+        // Receber uma nova captura do decodificador em cada clique.
+        window.nativeMapper.screenData(function (imageData) {
+            if (!imageData) {
+                console.error('Nenhum quadro decodificado disponivel para o Background.');
+                return;
+            }
+            window.mapperApplyScreenshotData(imageData);
+        });
     };
+
+    // Manter o carregador de Background original do ScrcpyKeyMapper.
+    // O clique solicita a imagem via Qt em vez de abrir o seletor de arquivo.
+    document.addEventListener('click', function (event) {
+        const input = document.getElementById('uploadBackground');
+        const button = input && input.closest('label');
+        if (!button || !button.contains(event.target)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.mapperApplyScreenshot();
+    }, true);
 
     // O transporte do Qt pode ser injetado apos a avaliacao do script.
     // Repetir a conexao evita que o editor mostre apenas a interface sem
