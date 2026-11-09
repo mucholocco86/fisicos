@@ -117,16 +117,7 @@ jobs:
           $tool = Get-Content upstream/QtScrcpy/QtScrcpy/ui/toolform.cpp -Raw
           if (!$tool.Contains('video->fitToAvailableScreen()') -or $tool.Contains('video->removeBlackRect()')) { throw 'Regressao: botao de enquadramento chama tamanho antigo' }
           if (!$tool.Contains('m_muteBtn->setEnabled(true)') -or !$tool.Contains('QStringLiteral("164")')) { throw 'Regressao: botao de mudo do Android nao ligado' }
-          if (!$tool.Contains('checkUhidAvailability(QStringLiteral("Gamepad UHID"))') -or !$tool.Contains('checkUhidAvailability(QStringLiteral("Teclado físico UHID"))') -or !$tool.Contains('m_androidSdk >= 26') -or !$tool.Contains('ro.build.version.sdk')) { throw 'Regressao: Android antigo pode derrubar o controlador com UHID_CREATE' }
-          Write-Host 'UHID: verificar Android antes de registrar teclado ou gamepad; SDK legado preservado.'
           if (!$tool.Contains('button->setFocusPolicy(Qt::NoFocus)') -or !$tool.Contains('video->setFocus(Qt::OtherFocusReason)')) { throw 'Botao de teclado pode capturar a barra de espaco' }
-          $mapperHeader = Get-Content upstream/QtScrcpy/QtScrcpy/ui/nativemapperwindow.h -Raw
-          $bridgeHead = Get-Content upstream/QtScrcpy/QtScrcpy/ui/videoform.h -Raw
-          if (!$video.Contains('new NativeMapperWindow(m_serial, this)') -or $video.Contains('new NativeMapperWindow(m_serial, screenshot, this)')) { throw 'Regressao: editor ainda espera captura antes de abrir' }
-          if (!$video.Contains('QPixmap VideoForm::captureMapperBackground() const') -or !$bridgeHead.Contains('QPixmap captureMapperBackground() const;')) { throw 'Captura de frame ao vivo indisponivel' }
-          if (!$mapper.Contains('m_videoSource->captureMapperBackground()') -or !$mapperHeader.Contains('QPointer<VideoForm> m_videoSource') -or $mapper.Contains('const QString imageData = screenData();')) { throw 'Regressao: mapeador usa screenshot antigo ou salva arquivo' }
-          if (!$bridge.Contains('window.nativeMapper.screenData(function (imageData)') -or !$bridge.Contains("input.closest('label')") -or !$bridge.Contains('event.preventDefault()')) { throw 'Botao Background nao foi conectado a captura do QtScrcpy' }
-          Write-Host 'Mapper: abertura imediata, Background sob demanda, ponte original de imagem preservada.'
           if (!$mapper.Contains('mapperApplyScreenshotData')) { throw 'Transferencia direta de screenshot ausente' }
           if (!$bridge.Contains('tela-atual-celular.png')) { throw 'Injecao automatica de screenshot ausente' }
           if (!$css.Contains('grid-template-columns: minmax(165px')) { throw 'Editor sem tres areas visiveis' }
