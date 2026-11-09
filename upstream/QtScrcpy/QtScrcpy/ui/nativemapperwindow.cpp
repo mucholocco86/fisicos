@@ -102,7 +102,21 @@ void MapperAssetHandler::requestStarted(QWebEngineUrlRequestJob *request) {
         request->fail(QWebEngineUrlRequestJob::RequestFailed);
         return;
     }
-    const QByteArray mime = QMimeDatabase().mimeTypeForFile(filePath).name().toUtf8();
+    // ES modules do Chromium exigem MIME JavaScript explícito. No Qt 5
+    // o reconhecimento do tipo de .js pode variar conforme o Windows.
+    const QString suffix = QFileInfo(filePath).suffix().toLower();
+    QByteArray mime;
+    if (suffix == QStringLiteral("js") || suffix == QStringLiteral("mjs")) {
+        mime = QByteArrayLiteral("text/javascript");
+    } else if (suffix == QStringLiteral("css")) {
+        mime = QByteArrayLiteral("text/css");
+    } else if (suffix == QStringLiteral("html")) {
+        mime = QByteArrayLiteral("text/html");
+    } else if (suffix == QStringLiteral("json")) {
+        mime = QByteArrayLiteral("application/json");
+    } else {
+        mime = QMimeDatabase().mimeTypeForFile(filePath).name().toUtf8();
+    }
     request->reply(mime, file);
 }
 
@@ -203,7 +217,9 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial)
             return;
         }
     }
-    m_view->load(QUrl::fromLocalFile(QDir(base).filePath(QStringLiteral("index.html"))));
+    // Servir HTML, módulos ES e imports pelo MESMO esquema registrado.
+    // file:// não forneceu MIME correto aos módulos no Qt WebEngine 5.15.
+    m_view->load(QUrl(QStringLiteral("qtscrcpymapper://editor/index.html")));
 }
 
 QString NativeMapperWindow::screenData() const {
