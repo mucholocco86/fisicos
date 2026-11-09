@@ -39,10 +39,7 @@ ToolForm::~ToolForm()
 
 void ToolForm::setSerial(const QString &serial)
 {
-    if (m_serial != serial) {
-        stopNativeInput();
-        m_androidSdk = -1;
-    }
+    if (m_serial != serial) stopNativeInput();
     m_serial = serial;
     updateCameraMode();
 }
@@ -195,54 +192,6 @@ bool ToolForm::sendHid(const QByteArray &packet)
     return device && !device->isCameraMode() && device->sendNativeHidPacket(packet);
 }
 
-// O UHID depende de /dev/uhid no Android. Em versões antigas (como
-// Android 6 / API 23) o shell ADB pode receber EACCES e o servidor scrcpy
-// encerra todo o controlador ao receber UHID_CREATE. Não enviar esse pacote.
-bool ToolForm::checkUhidAvailability(const QString &feature)
-{
-    if (m_serial.isEmpty()) return false;
-    if (m_androidSdk == -1) {
-        const QString adb = QDir(QCoreApplication::applicationDirPath()).filePath(
-#ifdef Q_OS_WIN
-            QStringLiteral("adb.exe")
-#else
-            QStringLiteral("adb")
-#endif
-        );
-        QProcess probe;
-        probe.start(adb, QStringList{QStringLiteral("-s"), m_serial,
-                                    QStringLiteral("shell"), QStringLiteral("getprop"),
-                                    QStringLiteral("ro.build.version.sdk")});
-        if (!probe.waitForStarted(1200) || !probe.waitForFinished(1800)) {
-            probe.kill();
-            probe.waitForFinished(200);
-            m_androidSdk = 0;
-        } else {
-            bool ok = false;
-            const int sdk = QString::fromUtf8(probe.readAllStandardOutput()).trimmed().toInt(&ok);
-            m_androidSdk = (probe.exitStatus() == QProcess::NormalExit &&
-                            probe.exitCode() == 0 && ok && sdk > 0) ? sdk : 0;
-        }
-        qInfo() << "Android SDK no dispositivo" << m_serial << ":" << m_androidSdk;
-    }
-
-    if (m_androidSdk >= 26) return true;
-
-    if (m_androidSdk == 0) {
-        QMessageBox::warning(this, feature,
-            QStringLiteral("Não foi possível verificar a versão do Android. "
-                           "Para proteger a conexão, o dispositivo UHID não será criado."));
-    } else {
-        QMessageBox::information(this, feature,
-            QStringLiteral("Este aparelho utiliza Android antigo (API %1), "
-                           "que pode bloquear /dev/uhid. A função UHID foi "
-                           "desativada para evitar interromper os controles "
-                           "do scrcpy. A digitação normal permanece disponível.")
-                .arg(m_androidSdk));
-    }
-    return false;
-}
-
 void ToolForm::toggleGamepad()
 {
 #ifdef Q_OS_WIN
@@ -262,10 +211,6 @@ void ToolForm::toggleGamepad()
         m_gamepadBtn->setChecked(false);
         QMessageBox::information(this, QStringLiteral("Gamepad"),
             QStringLiteral("Nenhum controle XInput conectado ao computador."));
-        return;
-    }
-    if (!checkUhidAvailability(QStringLiteral("Gamepad UHID"))) {
-        m_gamepadBtn->setChecked(false);
         return;
     }
     if (!sendHid(NativeHid::createGamepad())) {
@@ -338,10 +283,6 @@ void ToolForm::togglePhysicalKeyboard()
 
     // A presença do teclado físico via UHID informa ao Android que existe
     // um teclado de hardware. A digitação continua usando o QtScrcpy original.
-    if (!checkUhidAvailability(QStringLiteral("Teclado físico UHID"))) {
-        m_keyboardBtn->setChecked(false);
-        return;
-    }
     if (!sendHid(NativeHid::createKeyboard())) {
         m_keyboardBtn->setChecked(false);
         QMessageBox::warning(this, QStringLiteral("Teclado físico"),
