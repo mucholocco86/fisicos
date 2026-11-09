@@ -50,21 +50,9 @@ VideoForm::VideoForm(bool framelessWindow, bool skin, bool showToolbar, int deco
             [this](const QString &serial) {
         if (serial != m_serial) return;
 
-        // Captura o quadro exibido no momento do clique. O usuário não precisa
-        // salvar uma imagem ou abri-la manualmente no editor.
-        QPixmap screenshot;
-        if (m_videoWidget && m_videoWidget->isVisible()) {
-            screenshot = QPixmap::fromImage(m_videoWidget->grabFramebuffer());
-        } else if (QWidget *widget = videoWidget()) {
-            screenshot = widget->grab();
-        }
-        if (screenshot.isNull()) {
-            QMessageBox::information(this, QStringLiteral("Mapeamento"),
-                QStringLiteral("Aguarde o vídeo do aparelho aparecer para abrir o mapeador."));
-            return;
-        }
-
-        auto *editor = new NativeMapperWindow(m_serial, screenshot, this);
+        // O editor abre sem bloquear a janela de vídeo por uma captura
+        // OpenGL. A imagem será obtida pelo decodificador ao clicar Background.
+        auto *editor = new NativeMapperWindow(m_serial);
         connect(editor, &NativeMapperWindow::profileSaved, this,
                 [this](const QString &json, const QString &) {
             auto device = qsc::IDeviceManage::getInstance().getDevice(m_serial);
