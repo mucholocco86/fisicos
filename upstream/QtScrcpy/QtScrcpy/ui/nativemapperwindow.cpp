@@ -1,5 +1,4 @@
 #include "nativemapperwindow.h"
-#include "videoform.h"
 
 #include <QApplication>
 #include <QGuiApplication>
@@ -107,8 +106,8 @@ void MapperAssetHandler::requestStarted(QWebEngineUrlRequestJob *request) {
 }
 
 NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
-                                       VideoForm *videoSource)
-    : QDialog(nullptr), m_serial(deviceSerial), m_videoSource(videoSource) {
+                                       const QPixmap &screenshot, QWidget *parent)
+    : QDialog(nullptr), m_serial(deviceSerial), m_screen(screenshot) {
     setWindowTitle(QStringLiteral("ScrcpyKeyMapper — ") + m_serial);
     // Editor independente; nao assumir tamanho superior ao monitor de 1280x720.
     const QRect usable = QGuiApplication::primaryScreen()
@@ -166,8 +165,9 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
             m_status->setText(QStringLiteral("Erro ao abrir recursos locais do mapeador"));
             return;
         }
-        // Inicializar somente o editor e os perfis. A tela sera capturada
-        // posteriormente pelo botao Background, atraves do WebChannel.
+        // A imagem e enviada diretamente ao documento ja carregado.
+        // O WebChannel permanece para salvar perfis, mas nao bloqueia a captura.
+        const QString imageData = screenData();
         const QString script = QStringLiteral(R"JS(
             (function waitMapper(attempt) {
                 if (!window.nodeManager || !window.mapperApplyScreenshotData) {
@@ -175,10 +175,11 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
                     else console.error('Canvas do mapeador nao inicializado.');
                     return;
                 }
+                window.mapperApplyScreenshotData('%1');
                 window.mapperReady = true;
                 if (window.mapperInitialProfile) window.mapperLoadProfile(window.mapperInitialProfile);
             })(0);
-        )JS");
+        )JS").arg(imageData);
         m_view->page()->runJavaScript(script);
         loadSelectedProfile();
     });
@@ -208,14 +209,11 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
 }
 
 QString NativeMapperWindow::screenData() const {
-    // Capturar o video NO MOMENTO do clique em Background, nao na abertura.
-    if (!m_videoSource) return QString();
-    const QPixmap screenshot = m_videoSource->captureMapperBackground();
-    if (screenshot.isNull()) return QString();
+    if (m_screen.isNull()) return QString();
     QByteArray bytes;
     QBuffer buffer(&bytes);
     buffer.open(QIODevice::WriteOnly);
-    if (!screenshot.save(&buffer, "PNG")) return QString();
+    m_screen.save(&buffer, "PNG");
     return QStringLiteral("data:image/png;base64,") + QString::fromLatin1(bytes.toBase64());
 }
 
