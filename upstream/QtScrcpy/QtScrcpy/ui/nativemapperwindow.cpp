@@ -34,10 +34,6 @@
 #include <QWebEngineUrlRequestInterceptor>
 #include <QWebEngineUrlScheme>
 #include <QWebEngineView>
-#include <QTcpServer>
-#include <QTcpSocket>
-#include <QHostAddress>
-#include <QUrl>
 
 namespace {
 const char *kMapperScheme = "qtscrcpymapper";
@@ -106,21 +102,7 @@ void MapperAssetHandler::requestStarted(QWebEngineUrlRequestJob *request) {
         request->fail(QWebEngineUrlRequestJob::RequestFailed);
         return;
     }
-    // ES modules do Chromium exigem MIME JavaScript explícito. No Qt 5
-    // o reconhecimento do tipo de .js pode variar conforme o Windows.
-    const QString suffix = QFileInfo(filePath).suffix().toLower();
-    QByteArray mime;
-    if (suffix == QStringLiteral("js") || suffix == QStringLiteral("mjs")) {
-        mime = QByteArrayLiteral("text/javascript");
-    } else if (suffix == QStringLiteral("css")) {
-        mime = QByteArrayLiteral("text/css");
-    } else if (suffix == QStringLiteral("html")) {
-        mime = QByteArrayLiteral("text/html");
-    } else if (suffix == QStringLiteral("json")) {
-        mime = QByteArrayLiteral("application/json");
-    } else {
-        mime = QMimeDatabase().mimeTypeForFile(filePath).name().toUtf8();
-    }
+    const QByteArray mime = QMimeDatabase().mimeTypeForFile(filePath).name().toUtf8();
     request->reply(mime, file);
 }
 
@@ -163,99 +145,10 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial)
     auto *profile = new QWebEngineProfile(this);
     profile->setHttpCacheType(QWebEngineProfile::NoCache);
     profile->setPersistentCookiesPolicy(QWebEngineProfile::NoPersistentCookies);
-    // A página do editor é servida somente no loopback local. Nenhuma
-    // requisição para a internet é autorizada pelo perfil do WebEngine.
-    auto *assetServer = new QTcpServer(this);
-    const QString assetRoot = QDir(mapperDirectory()).canonicalPath();
-    if (assetRoot.isEmpty() || !assetServer->listen(QHostAddress::LocalHost, 0)) {
-        m_status->setText(QStringLiteral("Erro ao iniciar recursos locais do mapeador"));
-        return;
-    }
-    const quint16 assetPort = assetServer->serverPort();
-    QObject::connect(assetServer, &QTcpServer::newConnection, this,
-            [this, assetServer, assetRoot]() {
-        while (assetServer->hasPendingConnections()) {
-            auto *socket = assetServer->nextPendingConnection();
-            socket->setParent(assetServer);
-            QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
-            QObject::connect(socket, &QTcpSocket::readyRead, socket, [socket, assetRoot]() {
-                if (socket->property("mapperReplied").toBool()) return;
-                QByteArray received = socket->property("mapperRequest").toByteArray();
-                received += socket->readAll();
-                if (received.size() > 16384) {
-                    socket->disconnectFromHost();
-                    return;
-                }
-                socket->setProperty("mapperRequest", received);
-                if (!received.contains("\r\n\r\n")) return;
-                socket->setProperty("mapperReplied", true);
-                const QByteArray requestLine = received.left(received.indexOf("\r\n"));
-                const QList<QByteArray> fields = requestLine.split(' ');
-                QByteArray content;
-                QByteArray mime = QByteArrayLiteral("application/octet-stream");
-                QByteArray status = QByteArrayLiteral("200 OK");
-                if (fields.size() < 3 || fields.at(0) != "GET") {
-                    status = QByteArrayLiteral("405 Method Not Allowed");
-                } else {
-                    const QByteArray rawPath = fields.at(1).split('?').first();
-                    const QString path = QUrl::fromPercentEncoding(rawPath);
-                    const QString relative = path.startsWith('/') ? path.mid(1) : path;
-                    const QString selected = relative.isEmpty()
-                        ? QStringLiteral("index.html") : relative;
-                    QString filePath;
-                    if (selected == QStringLiteral("qtwebchannel/qwebchannel.js")) {
-                        filePath = QStringLiteral(":/qtwebchannel/qwebchannel.js");
-                    } else {
-                        filePath = QFileInfo(QDir(assetRoot).filePath(selected)).canonicalFilePath();
-                        if (!filePath.startsWith(assetRoot + QDir::separator()))
-                            filePath.clear();
-                    }
-                    QFile file(filePath);
-                    if (filePath.isEmpty() || !file.open(QIODevice::ReadOnly)) {
-                        status = QByteArrayLiteral("404 Not Found");
-                    } else {
-                        content = file.readAll();
-                        const QString suffix = QFileInfo(filePath).suffix().toLower();
-                        if (suffix == QStringLiteral("js") || suffix == QStringLiteral("mjs"))
-                            mime = QByteArrayLiteral("text/javascript");
-                        else if (suffix == QStringLiteral("html"))
-                            mime = QByteArrayLiteral("text/html; charset=utf-8");
-                        else if (suffix == QStringLiteral("css"))
-                            mime = QByteArrayLiteral("text/css");
-                        else if (suffix == QStringLiteral("json"))
-                            mime = QByteArrayLiteral("application/json");
-                        else if (suffix == QStringLiteral("svg"))
-                            mime = QByteArrayLiteral("image/svg+xml");
-                        else if (suffix == QStringLiteral("png"))
-                            mime = QByteArrayLiteral("image/png");
-                    }
-                }
-                const QByteArray header = QByteArrayLiteral("HTTP/1.1 ") + status
-                    + QByteArrayLiteral("\r\nContent-Type: ") + mime
-                    + QByteArrayLiteral("\r\nContent-Length: ")
-                    + QByteArray::number(content.size())
-                    + QByteArrayLiteral("\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n");
-                socket->write(header);
-                socket->write(content);
-                socket->disconnectFromHost();
-            });
-        }
-    });
-    class LoopbackOnly final : public QWebEngineUrlRequestInterceptor {
-    public:
-        explicit LoopbackOnly(quint16 port, QObject *parent)
-            : QWebEngineUrlRequestInterceptor(parent), m_port(port) {}
-        void interceptRequest(QWebEngineUrlRequestInfo &info) override {
-            const QUrl url = info.requestUrl();
-            if (url.scheme() != QStringLiteral("http")
-                || url.host() != QStringLiteral("127.0.0.1")
-                || url.port() != m_port)
-                info.block(true);
-        }
-    private:
-        quint16 m_port;
-    };
-    profile->setUrlRequestInterceptor(new LoopbackOnly(assetPort, profile));
+    // Nenhuma requisição HTTP ou HTTPS é permitida no editor integrado.
+    profile->setUrlRequestInterceptor(new MapperOfflineInterceptor(profile));
+    auto *handler = new MapperAssetHandler(mapperDirectory(), profile);
+    profile->installUrlSchemeHandler(QByteArray(kMapperScheme), handler);
     auto *page = new QWebEnginePage(profile, m_view);
     m_view->setPage(page);
     auto *channel = new QWebChannel(m_view);
@@ -310,9 +203,7 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial)
             return;
         }
     }
-    // Servir HTML, módulos ES e imports pelo MESMO esquema registrado.
-    // file:// não forneceu MIME correto aos módulos no Qt WebEngine 5.15.
-    m_view->load(QUrl(QStringLiteral("http://127.0.0.1:%1/index.html").arg(assetPort)));
+    m_view->load(QUrl::fromLocalFile(QDir(base).filePath(QStringLiteral("index.html"))));
 }
 
 QString NativeMapperWindow::screenData() const {
