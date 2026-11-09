@@ -30,6 +30,9 @@ QtMsgType covertLogLevel(const QString &logLevel);
 
 int main(int argc, char *argv[])
 {
+    // Qt WebEngine exige o registro de esquemas personalizados antes de
+    // inicializar QApplication ou qualquer parte do WebEngine.
+    registerEmbeddedMapperScheme();
     QCoreApplication::setOrganizationName("QtScrcpy");
     QCoreApplication::setApplicationName("QtScrcpy");
 
@@ -131,7 +134,6 @@ int main(int argc, char *argv[])
     QSurfaceFormat::setDefaultFormat(varFormat);
 
     g_oldMessageHandler = qInstallMessageHandler(myMessageOutput);
-    registerEmbeddedMapperScheme();
     QApplication a(argc, argv);
 
     // Only one QtScrcpy per user. If one is already running (possibly hidden in
