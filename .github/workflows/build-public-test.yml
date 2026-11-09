@@ -113,7 +113,10 @@ jobs:
           $input = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/controller/inputconvert/inputconvertnormal.cpp -Raw
           if (!$input.Contains('typedText.at(0).unicode() > 0x7f') -or !$input.Contains('ControlMsg::CMT_INJECT_TEXT') -or !$input.Contains('if (!shortcut && specialText)')) { throw 'Regressao: texto PT-BR nao usa protocolo nativo do scrcpy' }
           Write-Host 'Entrada PT-BR: texto Unicode e pontuacao preservados no canal de controle scrcpy.'
+          if (!$video.Contains('void VideoForm::fitToAvailableScreen()') -or !$video.Contains('available.height() - frameHeight') -or !$video.Contains('maxWidth - toolbarReserve - extraWidth')) { throw 'Regressao: redimensionamento nao limita video e barra pela area util do monitor' }
           $tool = Get-Content upstream/QtScrcpy/QtScrcpy/ui/toolform.cpp -Raw
+          if (!$tool.Contains('video->fitToAvailableScreen()') -or $tool.Contains('video->removeBlackRect()')) { throw 'Regressao: botao de enquadramento chama tamanho antigo' }
+          if (!$tool.Contains('m_muteBtn->setEnabled(true)') -or !$tool.Contains('QStringLiteral("164")')) { throw 'Regressao: botao de mudo do Android nao ligado' }
           if (!$tool.Contains('button->setFocusPolicy(Qt::NoFocus)') -or !$tool.Contains('video->setFocus(Qt::OtherFocusReason)')) { throw 'Botao de teclado pode capturar a barra de espaco' }
           if (!$mapper.Contains('mapperApplyScreenshotData')) { throw 'Transferencia direta de screenshot ausente' }
           if (!$bridge.Contains('tela-atual-celular.png')) { throw 'Injecao automatica de screenshot ausente' }
