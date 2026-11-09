@@ -74,7 +74,6 @@ private:
     void togglePhysicalKeyboard();
     void stopNativeInput();
     bool sendHid(const QByteArray &packet);
-    bool checkUhidAvailability(const QString &feature);
 
 private:
     Ui::ToolForm *ui;
@@ -91,7 +90,6 @@ private:
     bool m_gamepadEnabled = false;
     bool m_gamepadRegistered = false;
     bool m_keyboardEnabled = false;
-    int m_androidSdk = -1; // -1: ainda não consultado; 0: não verificável
     QByteArray m_lastGamepadReport;
     QTimer m_gamepadTimer;
 };
