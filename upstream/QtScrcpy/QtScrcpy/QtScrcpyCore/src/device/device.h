@@ -69,6 +69,7 @@ public:
     void installApkRequest(const QString &apkFile) override;
 
     void screenshot() override;
+    QImage captureFrame() override;
     void showTouch(bool show) override;
     void setCameraTorch(bool on) override;
     void cameraZoomIn() override;
