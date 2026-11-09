@@ -172,13 +172,13 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial)
         return;
     }
     const quint16 assetPort = assetServer->serverPort();
-    connect(assetServer, &QTcpServer::newConnection, this,
+    QObject::connect(assetServer, &QTcpServer::newConnection, this,
             [assetServer, assetRoot]() {
         while (assetServer->hasPendingConnections()) {
             auto *socket = assetServer->nextPendingConnection();
             socket->setParent(assetServer);
-            connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
-            connect(socket, &QTcpSocket::readyRead, socket, [socket, assetRoot]() {
+            QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+            QObject::connect(socket, &QTcpSocket::readyRead, socket, [socket, assetRoot]() {
                 if (socket->property("mapperReplied").toBool()) return;
                 QByteArray received = socket->property("mapperRequest").toByteArray();
                 received += socket->readAll();
