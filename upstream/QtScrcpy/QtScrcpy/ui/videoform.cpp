@@ -220,6 +220,45 @@ void VideoForm::removeBlackRect()
     resize(ui->keepRatioWidget->goodSize());
 }
 
+// Ajusta o conjunto (video + margem de 10px + barra de 34px) à área útil
+// do monitor. Não usa goodSize(): ele ignora a reserva lateral incorporada.
+void VideoForm::fitToAvailableScreen()
+{
+    if (m_frameSize.isEmpty() || m_flexDisplay || isFullScreen()) return;
+
+    const QRect available = getScreenRect();
+    if (available.isEmpty()) return;
+
+    const bool vertical = m_frameSize.height() > m_frameSize.width();
+    const QMargins skin = m_skin ? getMargins(vertical) : QMargins();
+    const int toolbarReserve = show_toolbar ? 44 : 0;
+    const int extraWidth = skin.left() + skin.right();
+    const int extraHeight = skin.top() + skin.bottom();
+
+    // Inclui o título e as bordas nativas nas dimensões disponíveis.
+    const int frameWidth = qMax(0, frameGeometry().width() - width());
+    const int frameHeight = qMax(0, frameGeometry().height() - height());
+    const int maxWidth = qMin(920, qMax(1, available.width() - frameWidth));
+    const int maxHeight = qMin(620, qMax(1, available.height() - frameHeight));
+    const QSize videoLimit(qMax(1, maxWidth - toolbarReserve - extraWidth),
+                           qMax(1, maxHeight - extraHeight));
+    const QSize fittedVideo = m_frameSize.scaled(videoLimit, Qt::KeepAspectRatio);
+    if (fittedVideo.isEmpty()) return;
+
+    const QSize target(fittedVideo.width() + extraWidth + toolbarReserve,
+                       fittedVideo.height() + extraHeight);
+    if (isMaximized()) showNormal();
+    resize(target);
+
+    // Manter todo o frame dentro do monitor, inclusive após o clique.
+    const QRect frame = frameGeometry();
+    const int maxX = available.right() - frame.width() + 1;
+    const int maxY = available.bottom() - frame.height() + 1;
+    const QPoint topLeft(qBound(available.left(), frame.left(), qMax(available.left(), maxX)),
+                         qBound(available.top(), frame.top(), qMax(available.top(), maxY)));
+    move(pos() + (topLeft - frame.topLeft()));
+}
+
 void VideoForm::showFPS(bool show)
 {
     if (!m_fpsLabel) {
