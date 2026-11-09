@@ -5,6 +5,10 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QProcess>
 #include "nativehidcontrols.h"
 
 #include "iconhelper.h"
@@ -70,7 +74,7 @@ void ToolForm::setupRemodeledToolbar()
     m_screenFitBtn = createButton("screenFitBtn",
         QStringLiteral("Ajustar o espelhamento à janela"));
     m_muteBtn = createButton("muteBtn",
-        QStringLiteral("Silenciar áudio (integração em etapa específica)"));
+        QStringLiteral("Ativar/desativar o mudo do áudio do Android"));
 
     // O mapper já possui um sinal dedicado para a integração posterior.
     // Seus botões ficam ativos; os outros dois executam UHID no canal existente.
@@ -79,7 +83,7 @@ void ToolForm::setupRemodeledToolbar()
     m_keyboardBtn->setEnabled(true);
     m_gamepadBtn->setCheckable(true);
     m_keyboardBtn->setCheckable(true);
-    m_muteBtn->setEnabled(false);
+    m_muteBtn->setEnabled(true);
 
     connect(m_keymapperBtn, &QPushButton::clicked, this, [this]() {
         emit keyMapperRequested(m_serial);
@@ -101,7 +105,30 @@ void ToolForm::setupRemodeledToolbar()
     // Os dois ajustes já existem em VideoForm e dispensam módulos novos.
     connect(m_screenFitBtn, &QPushButton::clicked, this, [this]() {
         auto *video = qobject_cast<VideoForm *>(parentWidget());
-        if (video) video->removeBlackRect();
+        if (video) video->fitToAvailableScreen();
+    });
+
+    // KEYCODE_VOLUME_MUTE (164) é o comando Android nativo para
+    // alternar o estado de mudo. Não modifica o áudio do Windows.
+    // Processo assíncrono: a interface e o espelhamento não ficam bloqueados.
+    connect(m_muteBtn, &QPushButton::clicked, this, [this]() {
+        if (m_serial.isEmpty()) return;
+        const QString adb = QDir(QCoreApplication::applicationDirPath()).filePath(
+#ifdef Q_OS_WIN
+            QStringLiteral("adb.exe")
+#else
+            QStringLiteral("adb")
+#endif
+        );
+        if (!QFileInfo::exists(adb) ||
+            !QProcess::startDetached(adb, QStringList{
+                QStringLiteral("-s"), m_serial,
+                QStringLiteral("shell"), QStringLiteral("input"),
+                QStringLiteral("keyevent"), QStringLiteral("164")
+            })) {
+            QMessageBox::warning(this, QStringLiteral("Mudo do Android"),
+                QStringLiteral("Não foi possível enviar o comando de mudo pelo ADB."));
+        }
     });
 
     // Ordem visual da imagem de referência: grupo, tela cheia,
