@@ -173,7 +173,7 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial)
     }
     const quint16 assetPort = assetServer->serverPort();
     QObject::connect(assetServer, &QTcpServer::newConnection, this,
-            [assetServer, assetRoot]() {
+            [this, assetServer, assetRoot]() {
         while (assetServer->hasPendingConnections()) {
             auto *socket = assetServer->nextPendingConnection();
             socket->setParent(assetServer);
