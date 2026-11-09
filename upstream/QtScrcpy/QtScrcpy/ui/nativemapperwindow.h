@@ -1,7 +1,6 @@
 #pragma once
 #include <QDialog>
 #include <QPointer>
-#include <QPixmap>
 #include <QString>
 #include <QWebEngineUrlSchemeHandler>
 
@@ -9,6 +8,7 @@ class QComboBox;
 class QLabel;
 class QWebEngineView;
 class QWebChannel;
+class VideoForm;
 class QWebEngineUrlRequestJob;
 
 // Scheme interno seguro para servir os arquivos originais offline, sem navegador.
@@ -27,7 +27,7 @@ class NativeMapperWindow final : public QDialog {
     Q_OBJECT
 public:
     explicit NativeMapperWindow(const QString &deviceSerial,
-                                const QPixmap &screenshot, QWidget *parent = nullptr);
+                                VideoForm *videoSource);
 
     // Métodos de ponte: mantêm o editor ScrcpyKeyMapper original,
     // porém salvam os perfis diretamente na pasta usada pelo QtScrcpy.
@@ -45,7 +45,7 @@ private:
     QString profilePath(const QString &name) const;
 
     QString m_serial;
-    QPixmap m_screen;
+    QPointer<VideoForm> m_videoSource;
     QWebEngineView *m_view = nullptr;
     QComboBox *m_profiles = nullptr;
     QLabel *m_status = nullptr;
