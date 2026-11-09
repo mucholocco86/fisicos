@@ -123,6 +123,7 @@ jobs:
           $buffer = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/decoder/videobuffer.cpp -Raw
           $entryPoint = Get-Content upstream/QtScrcpy/QtScrcpy/main.cpp -Raw
           $mapperHtml = Get-Content upstream/ScrcpyKeyMapper/index.html -Raw
+          if (!$mapper.Contains('[this, assetServer, assetRoot]()')) { throw 'Regressao MSVC: lambda deve capturar this explicitamente' }
           if (!$mapper.Contains('QObject::connect(assetServer, &QTcpServer::newConnection') -or !$mapper.Contains('QObject::connect(socket, &QTcpSocket::readyRead')) { throw 'Regressao MSVC C4573 nas conexoes do servidor local' }
           if (!$mapper.Contains('new QTcpServer(this)') -or !$mapper.Contains('listen(QHostAddress::LocalHost, 0)')) { throw 'Regressao: editor sem servidor temporario restrito ao loopback' }
           if (!$mapper.Contains('http://127.0.0.1:%1/index.html') -or $mapper.Contains('m_view->load(QUrl::fromLocalFile(') -or $mapper.Contains('m_view->load(QUrl(QStringLiteral("qtscrcpymapper://')) { throw 'Regressao: editor nao carrega por HTTP local' }
