@@ -1,4 +1,5 @@
 #include "nativemapperwindow.h"
+#include "../QtScrcpyCore/include/QtScrcpyCore.h"
 
 #include <QApplication>
 #include <QGuiApplication>
