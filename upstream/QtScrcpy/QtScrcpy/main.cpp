@@ -32,7 +32,6 @@ int main(int argc, char *argv[])
 {
     // Qt WebEngine exige o registro de esquemas personalizados antes de
     // inicializar QApplication ou qualquer parte do WebEngine.
-    registerEmbeddedMapperScheme();
     QCoreApplication::setOrganizationName("QtScrcpy");
     QCoreApplication::setApplicationName("QtScrcpy");
 
