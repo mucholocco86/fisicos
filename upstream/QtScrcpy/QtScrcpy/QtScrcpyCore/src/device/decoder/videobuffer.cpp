@@ -115,6 +115,11 @@ void VideoBuffer::peekRenderedFrame(std::function<void(int width, int height, ui
 
     lock();
     auto frame = m_renderingframe;
+    // Evita capturas enquanto o primeiro quadro ainda não foi decodificado.
+    if (!frame || !frame->data[0] || frame->width <= 0 || frame->height <= 0) {
+        unLock();
+        return;
+    }
     int width = frame->width;
     int height = frame->height;
     int linesize = frame->linesize[0];
@@ -124,6 +129,7 @@ void VideoBuffer::peekRenderedFrame(std::function<void(int width, int height, ui
     AVFrame *rgbFrame = av_frame_alloc();
     if (!rgbFrame) {
         delete [] rgbBuffer;
+        unLock();
         return;
     }
 
@@ -139,12 +145,14 @@ void VideoBuffer::peekRenderedFrame(std::function<void(int width, int height, ui
     if (!ret) {
         delete [] rgbBuffer;
         av_free(rgbFrame);
+        unLock();
         return;
     }
     ret = convert.convert(frame, rgbFrame);
     if (!ret) {
         delete [] rgbBuffer;
         av_free(rgbFrame);
+        unLock();
         return;
     }
     convert.deInit();
