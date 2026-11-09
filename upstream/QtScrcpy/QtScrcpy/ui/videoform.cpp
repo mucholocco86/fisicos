@@ -50,21 +50,9 @@ VideoForm::VideoForm(bool framelessWindow, bool skin, bool showToolbar, int deco
             [this](const QString &serial) {
         if (serial != m_serial) return;
 
-        // Captura o quadro exibido no momento do clique. O usuário não precisa
-        // salvar uma imagem ou abri-la manualmente no editor.
-        QPixmap screenshot;
-        if (m_videoWidget && m_videoWidget->isVisible()) {
-            screenshot = QPixmap::fromImage(m_videoWidget->grabFramebuffer());
-        } else if (QWidget *widget = videoWidget()) {
-            screenshot = widget->grab();
-        }
-        if (screenshot.isNull()) {
-            QMessageBox::information(this, QStringLiteral("Mapeamento"),
-                QStringLiteral("Aguarde o vídeo do aparelho aparecer para abrir o mapeador."));
-            return;
-        }
-
-        auto *editor = new NativeMapperWindow(m_serial, screenshot, this);
+        // Abrir o editor imediatamente. A captura do quadro so ocorre quando
+        // o usuario aciona Background no ScrcpyKeyMapper ja aberto.
+        auto *editor = new NativeMapperWindow(m_serial, this);
         connect(editor, &NativeMapperWindow::profileSaved, this,
                 [this](const QString &json, const QString &) {
             auto device = qsc::IDeviceManage::getInstance().getDevice(m_serial);
@@ -87,6 +75,19 @@ VideoForm::VideoForm(bool framelessWindow, bool skin, bool showToolbar, int deco
 VideoForm::~VideoForm()
 {
     delete ui;
+}
+
+QPixmap VideoForm::captureMapperBackground() const
+{
+    // Captura em memoria do mesmo video exibido pelo QtScrcpy, sem gravar
+    // screenshot em disco nem depender de resposta de ADB.
+    if (m_videoWidget && m_videoWidget->isVisible()) {
+        return QPixmap::fromImage(m_videoWidget->grabFramebuffer());
+    }
+    if (QWidget *widget = videoWidget()) {
+        if (widget->isVisible()) return widget->grab();
+    }
+    return QPixmap();
 }
 
 bool VideoForm::isMetalMode() const
