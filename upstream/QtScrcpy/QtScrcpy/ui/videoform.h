@@ -2,7 +2,6 @@
 #define VIDEOFORM_H
 
 #include <QPointer>
-#include <QPixmap>
 #include <QTimer>
 #include <QWidget>
 
@@ -34,7 +33,6 @@ public:
     void resizeSquare();
     void removeBlackRect();
     void fitToAvailableScreen();
-    QPixmap captureMapperBackground() const;
     void showFPS(bool show);
     void switchFullScreen();
     bool isHost();
