@@ -123,10 +123,13 @@ jobs:
           $buffer = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/decoder/videobuffer.cpp -Raw
           $entryPoint = Get-Content upstream/QtScrcpy/QtScrcpy/main.cpp -Raw
           $mapperHtml = Get-Content upstream/ScrcpyKeyMapper/index.html -Raw
-          if (!$mapper.Contains('qtscrcpymapper://editor/index.html') -or $mapper.Contains('m_view->load(QUrl::fromLocalFile(')) { throw 'Regressao: mapper carrega por file:// sem MIME de ES modules' }
+          if (!$mapper.Contains('new QTcpServer(this)') -or !$mapper.Contains('listen(QHostAddress::LocalHost, 0)')) { throw 'Regressao: editor sem servidor temporario restrito ao loopback' }
+          if (!$mapper.Contains('http://127.0.0.1:%1/index.html') -or $mapper.Contains('m_view->load(QUrl::fromLocalFile(') -or $mapper.Contains('m_view->load(QUrl(QStringLiteral("qtscrcpymapper://')) { throw 'Regressao: editor nao carrega por HTTP local' }
           if (!$mapper.Contains('QByteArrayLiteral("text/javascript")') -or !$mapperHtml.Contains('type="module" src="js/app.js"')) { throw 'Regressao: MIME e imports originais do mapper nao preservados' }
-          if ($entryPoint.IndexOf('registerEmbeddedMapperScheme();') -gt $entryPoint.IndexOf('QCoreApplication::setOrganizationName(')) { throw 'Regressao: esquema registrado tarde demais no main' }
-          Write-Host 'Mapper: esquema interno registrado antecipadamente, ES modules com MIME JavaScript.'
+          if (!$mapperHtml.Contains('src="qtwebchannel/qwebchannel.js"') -or !$mapper.Contains(':/qtwebchannel/qwebchannel.js')) { throw 'Ponte QtWebChannel indisponivel no servidor local' }
+          if (!$mapper.Contains('info.block(true)') -or !$mapper.Contains('url.host() != QStringLiteral("127.0.0.1")')) { throw 'Editor permite requisicoes fora do servidor local' }
+          if ($entryPoint.Contains('    registerEmbeddedMapperScheme();')) { throw 'Regressao: registro do protocolo nao utilizado no main' }
+          Write-Host 'Mapper: HTTP restrito a 127.0.0.1 e ES modules com MIME correto, sem protocolo personalizado.'
           $mapperHeader = Get-Content upstream/QtScrcpy/QtScrcpy/ui/nativemapperwindow.h -Raw
           if (!$video.Contains('new NativeMapperWindow(m_serial)') -or $video.Contains('grabFramebuffer()')) { throw 'Regressao: editor ainda captura OpenGL antes da abertura' }
           if (!$coreInterface.Contains('virtual QImage captureFrame() = 0;') -or !$device.Contains('QImage Device::captureFrame()') -or !$device.Contains('m_decoder->peekFrame')) { throw 'Captura nativa em memoria nao conectada' }
