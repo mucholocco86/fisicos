@@ -105,9 +105,8 @@ void MapperAssetHandler::requestStarted(QWebEngineUrlRequestJob *request) {
     request->reply(mime, file);
 }
 
-NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
-                                       const QPixmap &screenshot, QWidget *parent)
-    : QDialog(nullptr), m_serial(deviceSerial), m_screen(screenshot) {
+NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial)
+    : QDialog(nullptr), m_serial(deviceSerial) {
     setWindowTitle(QStringLiteral("ScrcpyKeyMapper — ") + m_serial);
     // Editor independente; nao assumir tamanho superior ao monitor de 1280x720.
     const QRect usable = QGuiApplication::primaryScreen()
@@ -165,9 +164,8 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
             m_status->setText(QStringLiteral("Erro ao abrir recursos locais do mapeador"));
             return;
         }
-        // A imagem e enviada diretamente ao documento ja carregado.
-        // O WebChannel permanece para salvar perfis, mas nao bloqueia a captura.
-        const QString imageData = screenData();
+        // Nenhuma captura acontece na abertura: só inicializar o editor
+        // e aguardar o usuário clicar em Background.
         const QString script = QStringLiteral(R"JS(
             (function waitMapper(attempt) {
                 if (!window.nodeManager || !window.mapperApplyScreenshotData) {
@@ -175,11 +173,10 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
                     else console.error('Canvas do mapeador nao inicializado.');
                     return;
                 }
-                window.mapperApplyScreenshotData('%1');
                 window.mapperReady = true;
                 if (window.mapperInitialProfile) window.mapperLoadProfile(window.mapperInitialProfile);
             })(0);
-        )JS").arg(imageData);
+        )JS");
         m_view->page()->runJavaScript(script);
         loadSelectedProfile();
     });
@@ -209,11 +206,17 @@ NativeMapperWindow::NativeMapperWindow(const QString &deviceSerial,
 }
 
 QString NativeMapperWindow::screenData() const {
-    if (m_screen.isNull()) return QString();
+    // Obter uma cópia do último quadro RGB32 pelo decodificador que o QtScrcpy
+    // já usa para screenshots. Não acessa OpenGL nem grava imagem em disco.
+    const auto device = qsc::IDeviceManage::getInstance().getDevice(m_serial);
+    if (!device) return QString();
+    const QImage screenshot = device->captureFrame();
+    if (screenshot.isNull()) return QString();
+
     QByteArray bytes;
     QBuffer buffer(&bytes);
-    buffer.open(QIODevice::WriteOnly);
-    m_screen.save(&buffer, "PNG");
+    if (!buffer.open(QIODevice::WriteOnly) || !screenshot.save(&buffer, "PNG"))
+        return QString();
     return QStringLiteral("data:image/png;base64,") + QString::fromLatin1(bytes.toBase64());
 }
 
