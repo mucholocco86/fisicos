@@ -173,6 +173,20 @@ void Device::screenshot()
     });
 }
 
+QImage Device::captureFrame()
+{
+    if (!m_decoder) return QImage();
+    QImage result;
+    // O screenshot nativo já usa peekFrame; retornar uma cópia independente
+    // antes de o decodificador liberar o buffer temporário RGB32.
+    m_decoder->peekFrame([&result](int width, int height, uint8_t *rgb32) {
+        if (rgb32 && width > 0 && height > 0) {
+            result = QImage(rgb32, width, height, QImage::Format_RGB32).copy();
+        }
+    });
+    return result;
+}
+
 void Device::showTouch(bool show)
 {
     if (isCameraMode()) {
