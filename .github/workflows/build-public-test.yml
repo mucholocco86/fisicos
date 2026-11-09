@@ -118,6 +118,16 @@ jobs:
           if (!$tool.Contains('video->fitToAvailableScreen()') -or $tool.Contains('video->removeBlackRect()')) { throw 'Regressao: botao de enquadramento chama tamanho antigo' }
           if (!$tool.Contains('m_muteBtn->setEnabled(true)') -or !$tool.Contains('QStringLiteral("164")')) { throw 'Regressao: botao de mudo do Android nao ligado' }
           if (!$tool.Contains('button->setFocusPolicy(Qt::NoFocus)') -or !$tool.Contains('video->setFocus(Qt::OtherFocusReason)')) { throw 'Botao de teclado pode capturar a barra de espaco' }
+          $coreInterface = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/include/QtScrcpyCore.h -Raw
+          $device = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/device.cpp -Raw
+          $buffer = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/decoder/videobuffer.cpp -Raw
+          $mapperHeader = Get-Content upstream/QtScrcpy/QtScrcpy/ui/nativemapperwindow.h -Raw
+          if (!$video.Contains('new NativeMapperWindow(m_serial)') -or $video.Contains('grabFramebuffer()')) { throw 'Regressao: editor ainda captura OpenGL antes da abertura' }
+          if (!$coreInterface.Contains('virtual QImage captureFrame() = 0;') -or !$device.Contains('QImage Device::captureFrame()') -or !$device.Contains('m_decoder->peekFrame')) { throw 'Captura nativa em memoria nao conectada' }
+          if (!$mapper.Contains('device->captureFrame()') -or !$mapperHeader.Contains('NativeMapperWindow(const QString &deviceSerial)') -or $mapper.Contains('const QString imageData = screenData();')) { throw 'Mapper continua usando captura antecipada' }
+          if (!$bridge.Contains('window.nativeMapper.screenData(function (imageData)') -or !$bridge.Contains("input.closest('label')")) { throw 'Botao Background nao conectado à captura sob demanda' }
+          if (!$buffer.Contains('if (!frame || !frame->data[0]') -or !$buffer.Contains('unLock();')) { throw 'Sem protecao para quadro invalido na captura' }
+          Write-Host 'Mapper: editor abre sem captura e Background usa decodificador em memoria.'
           if (!$mapper.Contains('mapperApplyScreenshotData')) { throw 'Transferencia direta de screenshot ausente' }
           if (!$bridge.Contains('tela-atual-celular.png')) { throw 'Injecao automatica de screenshot ausente' }
           if (!$css.Contains('grid-template-columns: minmax(165px')) { throw 'Editor sem tres areas visiveis' }
