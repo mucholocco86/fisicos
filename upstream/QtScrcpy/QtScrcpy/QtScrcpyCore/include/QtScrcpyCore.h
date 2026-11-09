@@ -2,6 +2,7 @@
 #include <QPointer>
 #include <QByteArray>
 #include <QMouseEvent>
+#include <QImage>
 
 #include "QtScrcpyCoreDef.h"
 
@@ -136,6 +137,8 @@ public:
     virtual void installApkRequest(const QString &apkFile) = 0;
 
     virtual void screenshot() = 0;
+    // Retorna cópia do quadro decodificado atual, sem salvar screenshot no disco.
+    virtual QImage captureFrame() = 0;
     virtual void showTouch(bool show) = 0;
     virtual void setCameraTorch(bool on) { Q_UNUSED(on); }
     virtual void cameraZoomIn() {}
