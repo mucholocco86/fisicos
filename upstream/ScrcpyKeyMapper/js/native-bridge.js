@@ -48,9 +48,32 @@
         }
     };
     window.mapperApplyScreenshot = function () {
-        if (!window.nativeMapper) return;
-        window.nativeMapper.screenData(window.mapperApplyScreenshotData);
+        if (!window.nativeMapper) {
+            console.error('Ponte Qt ainda nao disponivel para capturar Background.');
+            return;
+        }
+        // Cada clique solicita um quadro NOVO da janela espelhada.
+        window.nativeMapper.screenData(function (imageData) {
+            if (!imageData) {
+                console.error('Nenhum quadro do celular disponivel para Background.');
+                return;
+            }
+            window.mapperApplyScreenshotData(imageData);
+        });
     };
+
+    // Reaproveitar o proprio botao Background do editor original.
+    // Interceptar apenas o clique no label de upload, evitando abrir o
+    // seletor de arquivos. O evento "change" original continua recebendo
+    // a imagem em memoria pela ponte mapperApplyScreenshotData().
+    document.addEventListener('click', function (event) {
+        const input = document.getElementById('uploadBackground');
+        const button = input && input.closest('label');
+        if (!button || !button.contains(event.target)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.mapperApplyScreenshot();
+    }, true);
 
     // O transporte do Qt pode ser injetado apos a avaliacao do script.
     // Repetir a conexao evita que o editor mostre apenas a interface sem
