@@ -32,6 +32,7 @@ public:
     const QSize &frameSize();
     void resizeSquare();
     void removeBlackRect();
+    void fitToAvailableScreen();
     void showFPS(bool show);
     void switchFullScreen();
     bool isHost();
