@@ -29,7 +29,6 @@ public:
 
 signals:
     // Pontos de integração para etapas futuras; sem mecanismo provisório.
-    void keyMapperRequested(const QString &serial);
     void gamepadRequested(const QString &serial);
     void physicalKeyboardRequested(const QString &serial);
 
@@ -77,7 +76,6 @@ private:
 
 private:
     Ui::ToolForm *ui;
-    QPushButton *m_keymapperBtn = nullptr;
     QPushButton *m_gamepadBtn = nullptr;
     QPushButton *m_keyboardBtn = nullptr;
     QPushButton *m_screenFitBtn = nullptr;
