@@ -9,9 +9,14 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QProcess>
+#include <QCursor>
+#include <QToolTip>
+#include <QStandardPaths>
+#include <QDateTime>
 #include "nativehidcontrols.h"
 
 #include "iconhelper.h"
+#include "config.h"
 #include "toolform.h"
 #include "ui_toolform.h"
 #include "videoform.h"
@@ -477,10 +482,46 @@ void ToolForm::on_powerBtn_clicked()
 void ToolForm::on_screenShotBtn_clicked()
 {
     auto device = qsc::IDeviceManage::getInstance().getDevice(m_serial);
-    if (!device) {
+    if (!device) return;
+
+    // Reutiliza o frame já decodificado pelo QtScrcpy; não faz captura
+    // OpenGL nem abre outro processo, preservando a baixa latência.
+    const QImage frame = device->captureFrame();
+    if (frame.isNull()) {
+        QMessageBox::warning(this, QStringLiteral("Screenshot"),
+            QStringLiteral("Ainda não há um quadro de vídeo disponível para captura."));
         return;
     }
-    device->screenshot();
+
+    QString folder = Config::getInstance().getUserBootConfig().recordPath.trimmed();
+    if (folder.isEmpty()) {
+        folder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+        if (folder.isEmpty()) {
+            folder = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        }
+        folder = QDir(folder).filePath(QStringLiteral("WELLS Conect"));
+    }
+    if (!QDir().mkpath(folder)) {
+        QMessageBox::warning(this, QStringLiteral("Screenshot"),
+            QStringLiteral("Não foi possível criar a pasta: ") + folder);
+        return;
+    }
+
+    QString serial = m_serial;
+    serial.replace(':', '_');
+    serial.replace('.', '_');
+    const QString filename = serial + QDateTime::currentDateTime().toString(
+        QStringLiteral("_yyyyMMdd_hhmmss_zzz.png"));
+    const QString fullPath = QDir(folder).filePath(filename);
+    if (!frame.save(fullPath, "PNG")) {
+        QMessageBox::warning(this, QStringLiteral("Screenshot"),
+            QStringLiteral("Não foi possível salvar a imagem: ") + fullPath);
+        return;
+    }
+
+    qInfo() << "WELLS screenshot salvo:" << fullPath;
+    QToolTip::showText(QCursor::pos(),
+        QStringLiteral("Screenshot salvo em:\n") + fullPath, this, QRect(), 4500);
 }
 
 void ToolForm::on_volumeUpBtn_clicked()
