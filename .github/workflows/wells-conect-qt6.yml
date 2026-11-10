@@ -1,0 +1,56 @@
+name: WELLS CONECT Qt6 e scrcpy 5.0.1
+on:
+  push:
+    branches: [dev/wells-conect-qt6-scrcpy501]
+    paths:
+      - "wells-conect/**"
+      - ".github/workflows/wells-conect-qt6.yml"
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v4
+      - name: Instalar Qt 6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.3"
+          arch: win64_msvc2022_64
+          modules: ""
+          cache: true
+      - name: Compilar interface WELLS CONECT
+        shell: pwsh
+        run: |
+          cmake -S wells-conect -B wells-build -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build wells-build --config Release --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Obter scrcpy oficial 5.0.1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $url = 'https://github.com/Genymobile/scrcpy/releases/download/v5.0.1/scrcpy-win64-v5.0.1.zip'
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP/scrcpy.zip"
+          Expand-Archive "$env:RUNNER_TEMP/scrcpy.zip" "$env:RUNNER_TEMP/scrcpy" -Force
+          $exe = Get-ChildItem "$env:RUNNER_TEMP/scrcpy" -Filter scrcpy.exe -Recurse | Select-Object -First 1
+          if (!$exe) { throw 'scrcpy.exe oficial ausente' }
+          New-Item -ItemType Directory -Force -Path dist/scrcpy | Out-Null
+          Copy-Item "$($exe.Directory.FullName)/*" dist/scrcpy -Recurse -Force
+          if (!(Test-Path dist/scrcpy/scrcpy.exe) -or !(Test-Path dist/scrcpy/scrcpy-server)) { throw 'Arquivos essenciais do scrcpy 5.0.1 ausentes' }
+      - name: Preparar executável portátil Qt 6
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem wells-build -Filter WellsConect.exe -Recurse | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1
+          if (!$exe) { throw 'WellsConect.exe ausente' }
+          Copy-Item $exe.FullName dist/WellsConect.exe
+          & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --no-translations --no-opengl-sw dist/WellsConect.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item wells-conect/README.md dist/README.txt
+      - name: Publicar pacote portátil
+        uses: actions/upload-artifact@v4
+        with:
+          name: WELLS-CONECT-Qt6-scrcpy-5.0.1-Windows-ALFA
+          path: dist/
+          if-no-files-found: error
