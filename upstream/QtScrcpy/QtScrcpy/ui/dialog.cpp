@@ -1604,7 +1604,7 @@ void Dialog::on_wifiConnectBtn_clicked()
                     QStringLiteral("ip"), QStringLiteral("-f"), QStringLiteral("inet"),
                     QStringLiteral("addr"), QStringLiteral("show"), QStringLiteral("wlan0")},
         [this, selected, savedIp, port, connectAddress](bool ok, const QString &result) {
-            const QRegularExpression ipPattern(QStringLiteral(R"(\\binet\\s+(\\d{1,3}(?:\\.\\d{1,3}){3}))"));
+            const QRegularExpression ipPattern(QStringLiteral(R"(\binet\s+(\d{1,3}(?:\.\d{1,3}){3}))"));
             const QRegularExpressionMatch match = ipPattern.match(result);
             const QString wifiIp = match.hasMatch() ? match.captured(1) : savedIp;
             if (wifiIp.isEmpty()) {
