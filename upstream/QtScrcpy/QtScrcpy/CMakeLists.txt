@@ -111,7 +111,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(qt_required_components Widgets Network Multimedia WebEngineWidgets WebChannel)
+set(qt_required_components Widgets Network Multimedia)
 
 if (QT_DESIRED_VERSION MATCHES 6)
     # list(APPEND qt_required_components Core5Compat)
@@ -129,8 +129,6 @@ set(LINK_LIBS
     Qt${QT_DESIRED_VERSION}::Widgets
     Qt${QT_DESIRED_VERSION}::Network
     Qt${QT_DESIRED_VERSION}::Multimedia
-    Qt${QT_DESIRED_VERSION}::WebEngineWidgets
-    Qt${QT_DESIRED_VERSION}::WebChannel
 )
 
 if (QT_DESIRED_VERSION MATCHES 6)
@@ -180,8 +178,6 @@ set(QC_UI_SOURCES
     ui/toolform.ui
     ui/videoform.h
     ui/videoform.cpp
-    ui/nativemapperwindow.h
-    ui/nativemapperwindow.cpp
     ui/videoform.ui
     ui/dialog.cpp
     ui/dialog.h
