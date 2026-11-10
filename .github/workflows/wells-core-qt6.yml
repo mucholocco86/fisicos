@@ -1,7 +1,7 @@
 name: WELLS CONECT - Nucleo real QtScrcpy Qt6
 on:
   push:
-    branches: [dev/wells-conect-qtscrcpy-core-qt6]
+    branches: [release/wells-conect-icone-definitivo]
     paths:
       - '.github/workflows/wells-core-qt6.yml'
       - 'upstream/QtScrcpy/**'
@@ -55,6 +55,33 @@ jobs:
           if (!$tool.Contains('bool ToolForm::handlePhysicalKeyEvent') -or !$tool.Contains('NativeHid::input(NativeHid::KeyboardId, report)')) { throw 'Entrada UHID física não implementada' }
           if (!$video.Contains('m_toolForm->handlePhysicalKeyEvent(event)')) { throw 'Entrada de teclado não ligada ao painel de vídeo' }
           Write-Host 'Controles nativos e cinco correções pontuais WELLS verificados.'
+      - name: Incorporar ícone WELLS CONECT aprovado (Windows e bandeja)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check Pillow
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          @'
+          from pathlib import Path
+          from PIL import Image
+          res = Path("upstream/QtScrcpy/QtScrcpy/res")
+          source = res / "wells_connect_icon.png"
+          if not source.is_file():
+              raise RuntimeError("Ícone aprovado ausente do código-fonte")
+          original = Image.open(source).convert("RGBA")
+          if original.width != original.height or original.width < 128:
+              raise RuntimeError("Fonte do ícone incorreta")
+          # Embute múltiplas resoluções no PE do Windows, inclusive 256px.
+          large = original.resize((256, 256), Image.Resampling.LANCZOS)
+          large.save(res / "QtScrcpy.ico", format="ICO",
+                     sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+          # O mesmo desenho passa a ser usado pelo Qt e pela bandeja do sistema.
+          original.save(res / "image" / "tray" / "logo.png", format="PNG")
+          with Image.open(res / "QtScrcpy.ico") as ico:
+              assert ico.size == (256, 256), "Falha na geração do ícone .ico"
+          print("Ícone WELLS integrado ao recurso Windows e ao logo Qt.")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Configurar QtScrcpy para Qt 6
         shell: pwsh
         run: |
@@ -83,6 +110,8 @@ jobs:
           if (!$exe) { throw "QtScrcpy real não foi compilado" }
           New-Item -ItemType Directory dist -Force | Out-Null
           Copy-Item "$($exe.Directory.FullName)/*" dist -Recurse -Force
+          Copy-Item upstream/QtScrcpy/QtScrcpy/res/wells_connect_icon.png dist/WELLS_CONECT_ICON.png -Force
+          Copy-Item upstream/QtScrcpy/QtScrcpy/res/QtScrcpy.ico dist/WELLS_CONECT_ICON.ico -Force
           Rename-Item dist/QtScrcpy.exe WellsConect.exe
           Copy-Item upstream/QtScrcpy/config dist/config -Recurse -Force
           Copy-Item upstream/QtScrcpy/keymap dist/keymap -Recurse -Force
@@ -101,6 +130,6 @@ jobs:
           Get-ChildItem dist -Recurse -File -Include *.pdb,*.lib,*.exp | Remove-Item -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: WELLS-CONECT-QT6-SCRCPY-5.0.1-CORRECOES-WINDOWS
+          name: WELLS-CONECT-ICONE-DEFINITIVO-WINDOWS
           path: dist/
           if-no-files-found: error
