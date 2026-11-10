@@ -5,6 +5,7 @@
 #include <QWidget>
 #include <QTimer>
 #include <QByteArray>
+#include <QSet>
 
 #include "../QtScrcpyCore/include/QtScrcpyCore.h"
 #include "magneticwidget.h"
@@ -16,6 +17,7 @@ namespace Ui
 
 class Device;
 class QPushButton;
+class QKeyEvent;
 class ToolForm : public MagneticWidget
 {
     Q_OBJECT
@@ -26,6 +28,7 @@ public:
 
     void setSerial(const QString& serial);
     bool isHost();
+    bool handlePhysicalKeyEvent(const QKeyEvent *event);
 
 signals:
     // Pontos de integração para etapas futuras; sem mecanismo provisório.
@@ -88,6 +91,7 @@ private:
     bool m_gamepadRegistered = false;
     bool m_keyboardEnabled = false;
     QByteArray m_lastGamepadReport;
+    QSet<int> m_keyboardPressedKeys;
     QTimer m_gamepadTimer;
 };
 
