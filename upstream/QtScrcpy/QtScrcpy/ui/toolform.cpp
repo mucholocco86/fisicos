@@ -65,8 +65,6 @@ void ToolForm::setupRemodeledToolbar()
         return button;
     };
 
-    m_keymapperBtn = createButton("keymapperBtn",
-        QStringLiteral("Abrir ScrcpyKeyMapper integrado"));
     m_gamepadBtn = createButton("gamepadBtn",
         QStringLiteral("Ativar/desativar controle físico conectado ao PC"));
     m_keyboardBtn = createButton("physicalKeyboardBtn",
@@ -78,16 +76,12 @@ void ToolForm::setupRemodeledToolbar()
 
     // O mapper já possui um sinal dedicado para a integração posterior.
     // Seus botões ficam ativos; os outros dois executam UHID no canal existente.
-    m_keymapperBtn->setEnabled(true);
     m_gamepadBtn->setEnabled(true);
     m_keyboardBtn->setEnabled(true);
     m_gamepadBtn->setCheckable(true);
     m_keyboardBtn->setCheckable(true);
     m_muteBtn->setEnabled(true);
 
-    connect(m_keymapperBtn, &QPushButton::clicked, this, [this]() {
-        emit keyMapperRequested(m_serial);
-    });
     connect(m_gamepadBtn, &QPushButton::clicked, this, [this]() {
         toggleGamepad();
         emit gamepadRequested(m_serial);
@@ -131,13 +125,14 @@ void ToolForm::setupRemodeledToolbar()
         }
     });
 
-    // Ordem visual da imagem de referência: grupo, tela cheia,
-    // mapeador, gamepad, teclado, enquadramento, áudio e navegação.
+    // Barra fiel ao modelo: fullscreen, notificações, rotação,
+    // gamepad, teclado, áudio, screenshot, aplicativos, Home e Voltar.
     const QList<QPushButton *> order = {
-        ui->groupControlBtn, ui->fullScreenBtn,
-        m_keymapperBtn, m_gamepadBtn, m_keyboardBtn, m_screenFitBtn,
+        ui->fullScreenBtn, ui->expandNotifyBtn, ui->rotateBtn,
+        m_gamepadBtn, m_keyboardBtn,
         ui->volumeUpBtn, ui->volumeDownBtn, m_muteBtn,
-        ui->appSwitchBtn, ui->menuBtn, ui->homeBtn, ui->returnBtn
+        ui->screenShotBtn, ui->appSwitchBtn,
+        ui->homeBtn, ui->returnBtn
     };
     for (auto *button : order) {
         layout->removeWidget(button);
@@ -155,21 +150,18 @@ void ToolForm::setupRemodeledToolbar()
         // no Android. Os controles continuam clicaveis pelo mouse.
         button->setFocusPolicy(Qt::NoFocus);
         layout->addWidget(button, 0, Qt::AlignHCenter);
-        if (button == ui->fullScreenBtn) layout->addSpacing(28);
-        if (button == m_keyboardBtn) layout->addSpacing(18);
-        if (button == m_muteBtn) layout->addSpacing(18);
+
+
+
     }
 
     // Controles descartados da barra do modo tela, sem excluir o
     // código original de comunicação com o Android.
-    ui->expandNotifyBtn->hide();
     ui->expandSettingsBtn->hide();
-    ui->rotateBtn->hide();
     ui->touchBtn->hide();
     ui->openScreenBtn->hide();
     ui->closeScreenBtn->hide();
     ui->powerBtn->hide();
-    ui->screenShotBtn->hide();
     ui->clipboardBtn->hide();
 
     setFixedWidth(34);
@@ -342,7 +334,6 @@ void ToolForm::updateCameraMode()
     // nao permitir que o botao extra da area de transferencia reapareca.
     ui->clipboardBtn->hide();
     ui->screenShotBtn->hide();
-    if (m_keymapperBtn) m_keymapperBtn->setVisible(!camera);
     if (m_gamepadBtn) m_gamepadBtn->setVisible(!camera);
     if (m_keyboardBtn) m_keyboardBtn->setVisible(!camera);
     if (m_screenFitBtn) m_screenFitBtn->setVisible(!camera);
