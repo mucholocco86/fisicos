@@ -381,6 +381,12 @@ void Dialog::initUI()
     // Identidade visual da janela principal mantendo os controles originais
     // de conexão, dispositivos, ADB, USB e Wi-Fi.
     ui->useSingleModeCheck->hide();
+    ui->simpleGroupBox->setTitle(QStringLiteral("Dispositivos"));
+    connect(m_settingsWindow, &QDialog::finished, this, [this](int) {
+        show();
+        raise();
+        activateWindow();
+    });
     auto *header = new QHBoxLayout();
     auto *brand = new QLabel(QStringLiteral("WELLS CONECT"), ui->leftWidget);
     brand->setStyleSheet(QStringLiteral(
@@ -399,6 +405,7 @@ void Dialog::initUI()
     ui->verticalLayout_5->insertLayout(0, header);
     connect(settingsButton, &QPushButton::clicked, this, [this]() {
         if (!m_settingsWindow) return;
+        hide();
         m_settingsWindow->show();
         m_settingsWindow->raise();
         m_settingsWindow->activateWindow();
