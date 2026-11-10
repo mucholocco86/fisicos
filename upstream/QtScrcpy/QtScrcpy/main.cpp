@@ -29,8 +29,8 @@ QtMsgType covertLogLevel(const QString &logLevel);
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication::setOrganizationName("QtScrcpy");
-    QCoreApplication::setApplicationName("QtScrcpy");
+    QCoreApplication::setOrganizationName("WELLS");
+    QCoreApplication::setApplicationName("WELLS Conect");
 
     const QString executableDir = QFileInfo(QString::fromLocal8Bit(argv[0])).absolutePath();
 #ifdef Q_OS_MACOS
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 
     // Only one QtScrcpy per user. If one is already running (possibly hidden in
     // the system tray), ask it to show its window and exit.
-    SingleInstance singleInstance(QStringLiteral("QtScrcpy"));
+    SingleInstance singleInstance(QStringLiteral("WELLS Conect"));
     if (!singleInstance.isPrimary()) {
         singleInstance.notifyPrimary();
         return 0;
