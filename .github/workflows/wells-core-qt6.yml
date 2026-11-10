@@ -49,16 +49,17 @@ jobs:
           if (!$exe) { throw "QtScrcpy real não foi compilado" }
           New-Item -ItemType Directory dist -Force | Out-Null
           Copy-Item "$($exe.Directory.FullName)/*" dist -Recurse -Force
+          Rename-Item dist/QtScrcpy.exe WellsConect.exe
           Copy-Item upstream/QtScrcpy/config dist/config -Recurse -Force
           Copy-Item upstream/QtScrcpy/keymap dist/keymap -Recurse -Force
           Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/adb/win/* dist -Force
           Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/scrcpy-server dist/scrcpy-server
-          & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --compiler-runtime dist/QtScrcpy.exe
+          & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --compiler-runtime dist/WellsConect.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Test-Path dist/Qt6Core.dll)) { throw "Qt6 DLL ausente" }
           Get-ChildItem dist -Recurse -File -Include *.pdb,*.lib,*.exp | Remove-Item -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: WELLS-CONNECT-QT6-CORE-REAL-EXPERIMENTAL
+          name: WELLS-CONECT-NATIVO-QT6-BASE-EXPERIMENTAL
           path: dist/
           if-no-files-found: error
