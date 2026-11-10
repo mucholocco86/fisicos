@@ -938,6 +938,10 @@ void VideoForm::keyPressEvent(QKeyEvent *event)
         switchFullScreen();
     }
 
+    if (m_toolForm && m_toolForm->handlePhysicalKeyEvent(event)) {
+        event->accept();
+        return;
+    }
     QWidget *vw = videoWidget();
     QSize widgetSize = vw ? vw->size() : m_frameSize;
     emit device->keyEvent(event, m_frameSize, widgetSize);
@@ -947,6 +951,10 @@ void VideoForm::keyReleaseEvent(QKeyEvent *event)
 {
     auto device = qsc::IDeviceManage::getInstance().getDevice(m_serial);
     if (!device) {
+        return;
+    }
+    if (m_toolForm && m_toolForm->handlePhysicalKeyEvent(event)) {
+        event->accept();
         return;
     }
     QWidget *vw = videoWidget();
