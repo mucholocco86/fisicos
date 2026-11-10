@@ -25,7 +25,6 @@
 #include "mousetap/mousetap.h"
 #include "ui_videoform.h"
 #include "videoform.h"
-#include "nativemapperwindow.h"
 
 #ifdef Q_OS_MACOS
 #include "metalvideowindow.h"
@@ -46,20 +45,6 @@ VideoForm::VideoForm(bool framelessWindow, bool skin, bool showToolbar, int deco
         }
     });
     initUI();
-    connect(this, &VideoForm::keyMapperRequested, this,
-            [this](const QString &serial) {
-        if (serial != m_serial) return;
-
-        // O editor abre sem bloquear a janela de vídeo por uma captura
-        // OpenGL. A imagem será obtida pelo decodificador ao clicar Background.
-        auto *editor = new NativeMapperWindow(m_serial);
-        connect(editor, &NativeMapperWindow::profileSaved, this,
-                [this](const QString &json, const QString &) {
-            auto device = qsc::IDeviceManage::getInstance().getDevice(m_serial);
-            if (device) device->updateScript(json);
-        });
-        editor->show();
-    });
     installShortcut();
     updateShowSize(size());
     bool vertical = size().height() > size().width();
@@ -298,8 +283,6 @@ void VideoForm::showToolForm(bool show)
         m_toolForm = new ToolForm(this, ToolForm::AP_OUTSIDE_RIGHT);
         m_toolForm->useEmbeddedMode();
         m_toolForm->setSerial(m_serial);
-        connect(m_toolForm, &ToolForm::keyMapperRequested,
-                this, &VideoForm::keyMapperRequested);
     }
     // Uma unica janela: video e controles na mesma superficie.
     // O painel original continua recebendo os sinais/comandos nativos.
