@@ -48,7 +48,13 @@ jobs:
           if (!$tool.Contains('m_muteBtn') -or !$tool.Contains('QStringLiteral("164")')) { throw 'Controle de mute ausente' }
           if ($video.Contains('new NativeMapperWindow(') -or $tool.Contains('m_keymapperBtn')) { throw 'ScrcpyKeyMapper ainda integrado à barra' }
           if (!$video.Contains('m_toolForm->useEmbeddedMode()')) { throw 'Barra do QtScrcpy não está integrada à janela do vídeo' }
-          Write-Host 'Interface, barra nativa e versão do scrcpy validadas no código.'
+          if (!$dialog.Contains('ui->simpleGroupBox->setTitle(QStringLiteral("Dispositivos"))')) { throw 'Rótulo Dispositivos não foi aplicado' }
+          if (!$dialog.Contains('connect(m_settingsWindow, &QDialog::finished') -or !$dialog.Contains('m_settingsWindow->show()') -or !$dialog.Contains('hide();')) { throw 'Abertura/fechamento da janela de configurações divergente' }
+          if (!$dialog.Contains('void Dialog::runWifiAdbStep') -or !$dialog.Contains('QStringLiteral("tcpip")') -or !$dialog.Contains('runWifiAdbStep({QStringLiteral("connect")')) { throw 'Fluxo Wi-Fi ADB não foi conectado' }
+          if (!$tool.Contains('const QImage frame = device->captureFrame()') -or !$tool.Contains('WELLS Conect') -or !$tool.Contains('frame.save(fullPath, "PNG")')) { throw 'Screenshot nativo sem gravação e resultado' }
+          if (!$tool.Contains('bool ToolForm::handlePhysicalKeyEvent') -or !$tool.Contains('NativeHid::input(NativeHid::KeyboardId, report)')) { throw 'Entrada UHID física não implementada' }
+          if (!$video.Contains('m_toolForm->handlePhysicalKeyEvent(event)')) { throw 'Entrada de teclado não ligada ao painel de vídeo' }
+          Write-Host 'Controles nativos e cinco correções pontuais WELLS verificados.'
       - name: Configurar QtScrcpy para Qt 6
         shell: pwsh
         run: |
@@ -95,6 +101,6 @@ jobs:
           Get-ChildItem dist -Recurse -File -Include *.pdb,*.lib,*.exp | Remove-Item -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: WELLS-CONECT-QT6-SCRCPY-5.0.1-NATIVO-WINDOWS-TESTE
+          name: WELLS-CONECT-QT6-SCRCPY-5.0.1-CORRECOES-WINDOWS
           path: dist/
           if-no-files-found: error
