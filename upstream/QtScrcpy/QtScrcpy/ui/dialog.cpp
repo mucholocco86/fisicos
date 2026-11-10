@@ -17,6 +17,8 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QProcess>
+#include <memory>
 #include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QSizePolicy>
@@ -1511,41 +1513,122 @@ int Dialog::findDeviceFromeSerialBox(bool wifi)
     return -1;
 }
 
+void Dialog::runWifiAdbStep(const QStringList &arguments,
+                            std::function<void(bool, const QString &)> done)
+{
+    auto *process = new QProcess(this);
+    const QString configured = Config::getInstance().getAdbPath().trimmed();
+    const QString localAdb = QCoreApplication::applicationDirPath() +
+#ifdef Q_OS_WIN
+                             QStringLiteral("/adb.exe");
+#else
+                             QStringLiteral("/adb");
+#endif
+    process->setProgram(QFileInfo::exists(configured) ? configured : localAdb);
+    process->setArguments(arguments);
+    process->setProcessChannelMode(QProcess::MergedChannels);
+    auto finished = std::make_shared<bool>(false);
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [process, done, finished](int exitCode, QProcess::ExitStatus status) {
+        if (*finished) return;
+        *finished = true;
+        const QString message = QString::fromLocal8Bit(process->readAll()).trimmed();
+        done(status == QProcess::NormalExit && exitCode == 0, message);
+        process->deleteLater();
+    });
+    connect(process, &QProcess::errorOccurred, this,
+            [process, done, finished](QProcess::ProcessError error) {
+        if (*finished || error != QProcess::FailedToStart) return;
+        *finished = true;
+        done(false, process->errorString());
+        process->deleteLater();
+    });
+    process->start();
+}
+
 void Dialog::on_wifiConnectBtn_clicked()
 {
-    on_stopAllServerBtn_clicked();
-    delayMs(200);
+    if (m_wifiConnecting) return;
+    const QString selected = ui->serialBox->currentText().trimmed();
+    QString port = ui->devicePortEdt->currentText().trimmed();
+    if (port.isEmpty() && ui->devicePortEdt->lineEdit()) {
+        port = ui->devicePortEdt->lineEdit()->placeholderText().trimmed();
+    }
+    if (port.isEmpty()) port = QStringLiteral("5555");
+    const bool usbSelected = !selected.isEmpty() && !selected.contains(':');
+    const QString savedIp = ui->deviceIpEdt->currentText().trimmed();
 
-    on_updateDevice_clicked();
-    delayMs(200);
-
-    int firstUsbDevice = findDeviceFromeSerialBox(false);
-    if (-1 == firstUsbDevice) {
-        qWarning() << "No use device is found!";
+    if (!usbSelected && savedIp.isEmpty()) {
+        if (!selected.isEmpty() && selected.contains(':')) {
+            on_startServerBtn_clicked();
+            return;
+        }
+        QMessageBox::information(this, QStringLiteral("Conexão Wi-Fi"),
+            QStringLiteral("Conecte um celular por USB para ativar o ADB Wi-Fi ou informe seu IP em Definições Globais."));
         return;
     }
-    ui->serialBox->setCurrentIndex(firstUsbDevice);
 
-    on_getIPBtn_clicked();
-    delayMs(200);
+    m_wifiConnecting = true;
+    auto connectAddress = [this](const QString &address) {
+        outLog(QStringLiteral("Conectando por Wi-Fi: ") + address, false);
+        runWifiAdbStep({QStringLiteral("connect"), address},
+            [this, address](bool ok, const QString &result) {
+                m_wifiConnecting = false;
+                outLog(result);
+                const bool connected = ok && (result.contains(QStringLiteral("connected to"), Qt::CaseInsensitive)
+                              || result.contains(QStringLiteral("already connected"), Qt::CaseInsensitive));
+                if (!connected) {
+                    QMessageBox::warning(this, QStringLiteral("Conexão Wi-Fi"),
+                        QStringLiteral("Não foi possível conectar ao celular: ") + result);
+                    return;
+                }
+                int index = ui->serialBox->findText(address);
+                if (index < 0) {
+                    ui->serialBox->addItem(address);
+                    index = ui->serialBox->findText(address);
+                }
+                ui->serialBox->setCurrentIndex(index);
+                // O QtScrcpy mantém o gerenciamento e a janela de vídeo originais.
+                on_startServerBtn_clicked();
+                QTimer::singleShot(1200, this, &Dialog::on_updateDevice_clicked);
+            });
+    };
 
-    on_startAdbdBtn_clicked();
-    delayMs(1000);
-
-    on_wirelessConnectBtn_clicked();
-    delayMs(2000);
-
-    on_updateDevice_clicked();
-    delayMs(200);
-
-    int firstWifiDevice = findDeviceFromeSerialBox(true);
-    if (-1 == firstWifiDevice) {
-        qWarning() << "No wifi device is found!";
+    if (!usbSelected) {
+        connectAddress(savedIp.contains(':') ? savedIp : savedIp + ':' + port);
         return;
     }
-    ui->serialBox->setCurrentIndex(firstWifiDevice);
 
-    on_startServerBtn_clicked();
+    outLog(QStringLiteral("Obtendo IP do Wi-Fi no dispositivo USB ") + selected, false);
+    runWifiAdbStep({QStringLiteral("-s"), selected, QStringLiteral("shell"),
+                    QStringLiteral("ip"), QStringLiteral("-f"), QStringLiteral("inet"),
+                    QStringLiteral("addr"), QStringLiteral("show"), QStringLiteral("wlan0")},
+        [this, selected, savedIp, port, connectAddress](bool ok, const QString &result) {
+            const QRegularExpression ipPattern(QStringLiteral(R"(\\binet\\s+(\\d{1,3}(?:\\.\\d{1,3}){3}))"));
+            const QRegularExpressionMatch match = ipPattern.match(result);
+            const QString wifiIp = match.hasMatch() ? match.captured(1) : savedIp;
+            if (wifiIp.isEmpty()) {
+                m_wifiConnecting = false;
+                QMessageBox::warning(this, QStringLiteral("Conexão Wi-Fi"),
+                    QStringLiteral("Não foi possível identificar o IP do celular. Confira se o Wi-Fi está ligado.\n")
+                        + (ok ? QString() : result));
+                return;
+            }
+            runWifiAdbStep({QStringLiteral("-s"), selected, QStringLiteral("tcpip"), port},
+                [this, wifiIp, port, connectAddress](bool tcpOk, const QString &tcpOutput) {
+                    outLog(tcpOutput);
+                    if (!tcpOk) {
+                        m_wifiConnecting = false;
+                        QMessageBox::warning(this, QStringLiteral("Conexão Wi-Fi"),
+                            QStringLiteral("Falha ao ativar ADB TCP/IP: ") + tcpOutput);
+                        return;
+                    }
+                    // A reinicialização de adbd pode demorar; não bloquear o Qt.
+                    QTimer::singleShot(1300, this, [connectAddress, wifiIp, port]() {
+                        connectAddress(wifiIp + ':' + port);
+                    });
+                });
+        });
 }
 
 void Dialog::on_connectedPhoneList_itemDoubleClicked(QListWidgetItem *item)
