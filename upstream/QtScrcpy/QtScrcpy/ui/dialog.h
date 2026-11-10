@@ -8,6 +8,7 @@
 #include <QSystemTrayIcon>
 #include <QListWidget>
 #include <QTimer>
+#include <functional>
 
 
 #include "adbprocess.h"
@@ -111,6 +112,7 @@ private:
 
     void showPortEditMenu(const QPoint &pos);
     void syncPresetLevelToUi();
+    void runWifiAdbStep(const QStringList &arguments, std::function<void(bool, const QString &)> done);
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -118,6 +120,7 @@ protected:
 private:
     Ui::Widget *ui;
     QPointer<QDialog> m_settingsWindow;
+    bool m_wifiConnecting = false;
     qsc::AdbProcess m_adb;
     QSystemTrayIcon *m_hideIcon;
     QGroupBox *m_advancedDisplayGroup = nullptr;
