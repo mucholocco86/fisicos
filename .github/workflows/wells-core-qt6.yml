@@ -42,6 +42,17 @@ jobs:
         run: |
           cmake --build build-core-qt6 --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Obter servidor Android scrcpy 5.0.1 oficial
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $url = 'https://github.com/Genymobile/scrcpy/releases/download/v5.0.1/scrcpy-win64-v5.0.1.zip'
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP/scrcpy-5.0.1.zip"
+          Expand-Archive "$env:RUNNER_TEMP/scrcpy-5.0.1.zip" "$env:RUNNER_TEMP/scrcpy-5.0.1" -Force
+          $server = Get-ChildItem "$env:RUNNER_TEMP/scrcpy-5.0.1" -Filter 'scrcpy-server' -Recurse -File | Select-Object -First 1
+          if (!$server -or $server.Length -lt 100000) { throw 'Servidor oficial scrcpy 5.0.1 não encontrado' }
+          Copy-Item $server.FullName "$env:RUNNER_TEMP/wells-scrcpy-server-5.0.1"
+          Write-Host ("Servidor scrcpy 5.0.1: " + (Get-FileHash $server.FullName -Algorithm SHA256).Hash)
       - name: Empacotar apenas se binário real foi compilado
         shell: pwsh
         run: |
@@ -53,10 +64,11 @@ jobs:
           Copy-Item upstream/QtScrcpy/config dist/config -Recurse -Force
           Copy-Item upstream/QtScrcpy/keymap dist/keymap -Recurse -Force
           Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/adb/win/* dist -Force
-          Copy-Item upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/third_party/scrcpy-server dist/scrcpy-server
+          Copy-Item "$env:RUNNER_TEMP/wells-scrcpy-server-5.0.1" dist/scrcpy-server
           & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --compiler-runtime dist/WellsConect.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (!(Test-Path dist/Qt6Core.dll)) { throw "Qt6 DLL ausente" }
+          if ((Get-Item dist/scrcpy-server).Length -lt 100000) { throw 'scrcpy 5.0.1 não foi empacotado' }
           Get-ChildItem dist -Recurse -File -Include *.pdb,*.lib,*.exp | Remove-Item -Force
       - uses: actions/upload-artifact@v4
         with:
