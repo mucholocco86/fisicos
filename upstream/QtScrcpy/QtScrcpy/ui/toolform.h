@@ -78,7 +78,6 @@ private:
     Ui::ToolForm *ui;
     QPushButton *m_gamepadBtn = nullptr;
     QPushButton *m_keyboardBtn = nullptr;
-    QPushButton *m_screenFitBtn = nullptr;
     QPushButton *m_muteBtn = nullptr;
     QPoint m_dragPosition;
     QString m_serial;
