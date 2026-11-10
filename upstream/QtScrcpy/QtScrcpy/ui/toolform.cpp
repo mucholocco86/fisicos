@@ -69,8 +69,6 @@ void ToolForm::setupRemodeledToolbar()
         QStringLiteral("Ativar/desativar controle físico conectado ao PC"));
     m_keyboardBtn = createButton("physicalKeyboardBtn",
         QStringLiteral("Alternar teclado físico e teclado virtual do Android"));
-    m_screenFitBtn = createButton("screenFitBtn",
-        QStringLiteral("Ajustar o espelhamento à janela"));
     m_muteBtn = createButton("muteBtn",
         QStringLiteral("Ativar/desativar o mudo do áudio do Android"));
 
@@ -94,12 +92,6 @@ void ToolForm::setupRemodeledToolbar()
             video->setFocus(Qt::OtherFocusReason);
         }
         emit physicalKeyboardRequested(m_serial);
-    });
-
-    // Os dois ajustes já existem em VideoForm e dispensam módulos novos.
-    connect(m_screenFitBtn, &QPushButton::clicked, this, [this]() {
-        auto *video = qobject_cast<VideoForm *>(parentWidget());
-        if (video) video->fitToAvailableScreen();
     });
 
     // KEYCODE_VOLUME_MUTE (164) é o comando Android nativo para
@@ -333,7 +325,6 @@ void ToolForm::updateCameraMode()
     ui->clipboardBtn->hide();
     if (m_gamepadBtn) m_gamepadBtn->setVisible(!camera);
     if (m_keyboardBtn) m_keyboardBtn->setVisible(!camera);
-    if (m_screenFitBtn) m_screenFitBtn->setVisible(!camera);
     if (m_muteBtn) m_muteBtn->setVisible(!camera);
 }
 
@@ -363,7 +354,6 @@ void ToolForm::initStyle()
     // Ícones da barra redesenhada, usando a fonte já incluída no QtScrcpy.
     IconHelper::Instance()->SetIcon(m_gamepadBtn, QChar(0xf11b), 17);
     IconHelper::Instance()->SetIcon(m_keyboardBtn, QChar(0xf10b), 20);
-    IconHelper::Instance()->SetIcon(m_screenFitBtn, QChar(0xf065), 18);
     IconHelper::Instance()->SetIcon(m_muteBtn, QChar(0xf026), 18);
 }
 
