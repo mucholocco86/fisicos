@@ -16,7 +16,6 @@
 
 #include "config.h"
 #include "dialog.h"
-#include "nativemapperwindow.h"
 #include "mousetap/mousetap.h"
 #include "singleinstance.h"
 
@@ -131,7 +130,6 @@ int main(int argc, char *argv[])
     QSurfaceFormat::setDefaultFormat(varFormat);
 
     g_oldMessageHandler = qInstallMessageHandler(myMessageOutput);
-    registerEmbeddedMapperScheme();
     QApplication a(argc, argv);
 
     // Only one QtScrcpy per user. If one is already running (possibly hidden in
