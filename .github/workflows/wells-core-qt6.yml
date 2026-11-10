@@ -18,7 +18,7 @@ jobs:
         with:
           version: '6.8.3'
           arch: win64_msvc2022_64
-          modules: 'qtwebengine qtmultimedia qt5compat'
+          modules: 'qtwebengine qtwebchannel qtmultimedia qt5compat'
           cache: true
       - name: Conferir núcleo REAL de vídeo e controles
         shell: pwsh
