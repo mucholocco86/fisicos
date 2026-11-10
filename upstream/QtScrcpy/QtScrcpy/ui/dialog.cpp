@@ -3,6 +3,8 @@
 #include <QDesktopServices>
 #include <QCheckBox>
 #include <QDir>
+#include <QDialog>
+#include <QLabel>
 #include <QFile>
 #include <QFileDialog>
 #include <QFrame>
@@ -358,6 +360,54 @@ void Dialog::initUI()
     ui->verticalLayout_5->setStretch(3, 0);
     ui->verticalLayout_4->setStretch(2, 1);
     ui->verticalLayout_6->setStretch(0, 1);
+
+    // WELLS CONECT: a janela de configurações reutiliza o rightWidget
+    // original, incluindo os widgets, handlers e os modelos QtScrcpy.
+    // Reparenting preserva os objetos existentes em vez de recriar controles.
+    m_settingsWindow = new QDialog(this, Qt::Window);
+    m_settingsWindow->setWindowTitle(QStringLiteral("WELLS Conect — Definições Globais"));
+    m_settingsWindow->resize(650, 565);
+    m_settingsWindow->setModal(false);
+    auto *settingsLayout = new QVBoxLayout(m_settingsWindow);
+    auto *settingsBrand = new QLabel(QStringLiteral("WELLS CONECT"), m_settingsWindow);
+    settingsBrand->setAlignment(Qt::AlignCenter);
+    settingsBrand->setStyleSheet(QStringLiteral(
+        "QLabel { color: #ef3743; font-size: 19px; font-weight: bold; padding: 5px; }"));
+    settingsLayout->addWidget(settingsBrand);
+    ui->horizontalLayout_11->removeWidget(ui->rightWidget);
+    ui->rightWidget->setParent(m_settingsWindow);
+    settingsLayout->addWidget(ui->rightWidget, 1);
+
+    // Identidade visual da janela principal mantendo os controles originais
+    // de conexão, dispositivos, ADB, USB e Wi-Fi.
+    ui->useSingleModeCheck->hide();
+    auto *header = new QHBoxLayout();
+    auto *brand = new QLabel(QStringLiteral("WELLS CONECT"), ui->leftWidget);
+    brand->setStyleSheet(QStringLiteral(
+        "QLabel { color: #ef3743; font-size: 26px; font-weight: bold; }"));
+    auto *settingsButton = new QPushButton(QStringLiteral("⚙"), ui->leftWidget);
+    settingsButton->setObjectName(QStringLiteral("wellsSettingsButton"));
+    settingsButton->setToolTip(QStringLiteral("Abrir Definições Globais"));
+    settingsButton->setFixedSize(54, 32);
+    settingsButton->setStyleSheet(QStringLiteral(
+        "QPushButton { color: white; background: #28282e; border: 1px solid #404048;"
+        " border-radius: 5px; font-size: 18px; }"
+        " QPushButton:hover { background: #393943; }"));
+    header->addWidget(brand);
+    header->addStretch();
+    header->addWidget(settingsButton);
+    ui->verticalLayout_5->insertLayout(0, header);
+    connect(settingsButton, &QPushButton::clicked, this, [this]() {
+        if (!m_settingsWindow) return;
+        m_settingsWindow->show();
+        m_settingsWindow->raise();
+        m_settingsWindow->activateWindow();
+    });
+    for (auto *button : {ui->wifiConnectBtn, ui->usbConnectBtn}) {
+        button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    }
+    setWindowTitle(QStringLiteral("WELLS Conect"));
+    resize(650, 565);
 }
 
 void Dialog::initAdvancedDisplayUi()
@@ -1517,12 +1567,8 @@ void Dialog::on_updateNameBtn_clicked()
 
 void Dialog::on_useSingleModeCheck_clicked()
 {
-    if (ui->useSingleModeCheck->isChecked()) {
-        ui->rightWidget->hide();
-    } else {
-        ui->rightWidget->show();
-    }
-
+    // O painel de opções agora está em uma janela própria e não deve ser
+    // ocultado pela antiga alternância de modo simples.
     adjustSize();
 }
 
