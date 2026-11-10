@@ -27,6 +27,7 @@ class QCheckBox;
 class QGroupBox;
 class QPushButton;
 class QSpinBox;
+class QDialog;
 class Dialog : public QWidget
 {
     Q_OBJECT
@@ -116,6 +117,7 @@ protected:
 
 private:
     Ui::Widget *ui;
+    QPointer<QDialog> m_settingsWindow;
     qsc::AdbProcess m_adb;
     QSystemTrayIcon *m_hideIcon;
     QGroupBox *m_advancedDisplayGroup = nullptr;
