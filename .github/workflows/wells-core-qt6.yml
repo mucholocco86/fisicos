@@ -32,6 +32,23 @@ jobs:
             'upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/decoder/decoder.cpp'
           )
           foreach($p in $paths) { if (!(Test-Path $p)) { throw "Núcleo real ausente: $p" } }
+      - name: Conferir protocolo, controles e janelas do WELLS CONECT
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $core = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/include/QtScrcpyCoreDef.h -Raw
+          $server = Get-Content upstream/QtScrcpy/QtScrcpy/QtScrcpyCore/src/device/server/server.h -Raw
+          $dialog = Get-Content upstream/QtScrcpy/QtScrcpy/ui/dialog.cpp -Raw
+          $tool = Get-Content upstream/QtScrcpy/QtScrcpy/ui/toolform.cpp -Raw
+          $video = Get-Content upstream/QtScrcpy/QtScrcpy/ui/videoform.cpp -Raw
+          if (!$core.Contains('serverVersion = "5.0.1"') -or !$server.Contains('serverVersion = "5.0.1"')) { throw 'Protocolo do servidor não é scrcpy 5.0.1' }
+          if (!$dialog.Contains('ui->rightWidget->setParent(m_settingsWindow)') -or !$dialog.Contains('m_settingsWindow->show()')) { throw 'Configurações não utilizam os controles originais em janela separada' }
+          if (!$dialog.Contains('ui->usbGroupBox') -or !$dialog.Contains('ui->wirelessGroupBox')) { throw 'Controles de conexão originais ausentes' }
+          if (!$tool.Contains('ui->fullScreenBtn, ui->expandNotifyBtn, ui->rotateBtn') -or !$tool.Contains('ui->screenShotBtn, ui->appSwitchBtn') -or !$tool.Contains('m_gamepadBtn, m_keyboardBtn')) { throw 'Ordem dos controles do espelhamento diverge do modelo' }
+          if (!$tool.Contains('m_muteBtn') -or !$tool.Contains('QStringLiteral("164")')) { throw 'Controle de mute ausente' }
+          if ($video.Contains('new NativeMapperWindow(') -or $tool.Contains('m_keymapperBtn')) { throw 'ScrcpyKeyMapper ainda integrado à barra' }
+          if (!$video.Contains('m_toolForm->useEmbeddedMode()')) { throw 'Barra do QtScrcpy não está integrada à janela do vídeo' }
+          Write-Host 'Interface, barra nativa e versão do scrcpy validadas no código.'
       - name: Configurar QtScrcpy para Qt 6
         shell: pwsh
         run: |
@@ -67,11 +84,17 @@ jobs:
           Copy-Item "$env:RUNNER_TEMP/wells-scrcpy-server-5.0.1" dist/scrcpy-server
           & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --compiler-runtime dist/WellsConect.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (!(Test-Path dist/Qt6Core.dll)) { throw "Qt6 DLL ausente" }
+          foreach ($dependency in @('Qt6Core.dll','Qt6Gui.dll','Qt6Widgets.dll','Qt6OpenGL.dll','Qt6OpenGLWidgets.dll','Qt6Multimedia.dll','adb.exe','scrcpy-server','sndcpy.apk')) {
+            if (!(Test-Path ("dist/" + $dependency))) { throw "Dependência obrigatória ausente: $dependency" }
+          }
+          if (!(Get-ChildItem dist -Filter 'avcodec-*.dll' -File)) { throw 'FFmpeg avcodec ausente' }
+          if (!(Get-ChildItem dist -Filter 'avformat-*.dll' -File)) { throw 'FFmpeg avformat ausente' }
+          if (Test-Path 'dist/scrcpy.exe') { throw 'Regressão: pacote contém motor externo em lugar de núcleo integrado' }
+          Write-Host 'WellsConect.exe, DLLs do QtScrcpy, FFmpeg, ADB, sndcpy e scrcpy 5.0.1 presentes.'
           if ((Get-Item dist/scrcpy-server).Length -lt 100000) { throw 'scrcpy 5.0.1 não foi empacotado' }
           Get-ChildItem dist -Recurse -File -Include *.pdb,*.lib,*.exp | Remove-Item -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: WELLS-CONECT-NATIVO-QT6-BASE-EXPERIMENTAL
+          name: WELLS-CONECT-QT6-SCRCPY-5.0.1-NATIVO-WINDOWS-TESTE
           path: dist/
           if-no-files-found: error
