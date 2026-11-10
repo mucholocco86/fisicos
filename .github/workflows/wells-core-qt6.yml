@@ -13,12 +13,12 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - name: Qt 6 + WebEngine real para interface QtScrcpy
+      - name: Instalar Qt 6 para núcleo QtScrcpy sem navegador embutido
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
           arch: win64_msvc2022_64
-          modules: 'qtwebengine qtwebchannel qtmultimedia qt5compat'
+          modules: 'qtmultimedia qt5compat'
           cache: true
       - name: Conferir núcleo REAL de vídeo e controles
         shell: pwsh
