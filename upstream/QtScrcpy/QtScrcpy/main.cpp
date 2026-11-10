@@ -140,14 +140,12 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    // Set application icon for Linux (taskbar icon)
-#ifdef Q_OS_LINUX
-    // Load icon from Qt resource (logo.png is included in res.qrc)
+    // Identidade WELLS CONECT para Windows, Linux e ícone da janela.
+    // O recurso Qt é substituído pelo ícone aprovado antes da compilação.
     QIcon appIcon(":/image/tray/logo.png");
     if (!appIcon.isNull()) {
         a.setWindowIcon(appIcon);
     }
-#endif
 
     // windows下通过qmake VERSION变量或者rc设置版本号和应用名称后，这里可以直接拿到
     // mac下拿到的是CFBundleVersion的值
