@@ -323,9 +323,7 @@ void ToolForm::updateCameraMode()
     ui->cameraZoomOutBtn->setVisible(camera);
     ui->cameraZoomInBtn->setVisible(camera);
 
-    ui->expandNotifyBtn->hide();
     ui->expandSettingsBtn->hide();
-    ui->rotateBtn->hide();
     ui->touchBtn->hide();
     ui->openScreenBtn->hide();
     ui->closeScreenBtn->hide();
@@ -333,7 +331,6 @@ void ToolForm::updateCameraMode()
     // setSerial() executa updateCameraMode() depois da montagem da barra:
     // nao permitir que o botao extra da area de transferencia reapareca.
     ui->clipboardBtn->hide();
-    ui->screenShotBtn->hide();
     if (m_gamepadBtn) m_gamepadBtn->setVisible(!camera);
     if (m_keyboardBtn) m_keyboardBtn->setVisible(!camera);
     if (m_screenFitBtn) m_screenFitBtn->setVisible(!camera);
@@ -364,7 +361,6 @@ void ToolForm::initStyle()
     IconHelper::Instance()->SetIcon(ui->cameraZoomOutBtn, QChar(0xf010), 15);
     IconHelper::Instance()->SetIcon(ui->cameraZoomInBtn, QChar(0xf00e), 15);
     // Ícones da barra redesenhada, usando a fonte já incluída no QtScrcpy.
-    IconHelper::Instance()->SetIcon(m_keymapperBtn, QChar(0xf11c), 17);
     IconHelper::Instance()->SetIcon(m_gamepadBtn, QChar(0xf11b), 17);
     IconHelper::Instance()->SetIcon(m_keyboardBtn, QChar(0xf10b), 20);
     IconHelper::Instance()->SetIcon(m_screenFitBtn, QChar(0xf065), 18);
