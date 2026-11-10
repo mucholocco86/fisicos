@@ -10,6 +10,8 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QCursor>
+#include <QKeyEvent>
+#include <algorithm>
 #include <QToolTip>
 #include <QStandardPaths>
 #include <QDateTime>
@@ -261,6 +263,88 @@ void ToolForm::pollGamepad()
 #endif
 }
 
+namespace {
+int keyboardHidUsage(int key)
+{
+    if (key >= Qt::Key_A && key <= Qt::Key_Z)
+        return 4 + key - Qt::Key_A;
+    if (key >= Qt::Key_1 && key <= Qt::Key_9)
+        return 30 + key - Qt::Key_1;
+    if (key == Qt::Key_0) return 39;
+    switch (key) {
+    case Qt::Key_Return: return 40;
+    case Qt::Key_Enter: return 88;
+    case Qt::Key_Escape: return 41;
+    case Qt::Key_Backspace: return 42;
+    case Qt::Key_Tab: return 43;
+    case Qt::Key_Space: return 44;
+    case Qt::Key_Delete: return 76;
+    case Qt::Key_Right: return 79;
+    case Qt::Key_Left: return 80;
+    case Qt::Key_Down: return 81;
+    case Qt::Key_Up: return 82;
+    case Qt::Key_Home: return 74;
+    case Qt::Key_End: return 77;
+    case Qt::Key_PageUp: return 75;
+    case Qt::Key_PageDown: return 78;
+    case Qt::Key_Shift:
+    case Qt::Key_Control:
+    case Qt::Key_Alt:
+    case Qt::Key_Meta:
+        return -2; // modifiers are represented by the first report byte
+    default:
+        return 0; // symbols and accents use the existing PT-BR text path
+    }
+}
+}
+
+bool ToolForm::handlePhysicalKeyEvent(const QKeyEvent *event)
+{
+    if (!m_keyboardEnabled || !event) return false;
+    const bool press = event->type() == QEvent::KeyPress;
+    if (!press && event->type() != QEvent::KeyRelease) return false;
+
+    const int usage = keyboardHidUsage(event->key());
+    if (!usage) return false;
+
+    // Preserve the existing Unicode/ABNT2 injection for accented characters.
+    const QString text = event->text();
+    if (!text.isEmpty() && usage > 0 && event->key() != Qt::Key_Space
+        && (text.size() > 1 || text.at(0).unicode() > 127)) {
+        return false;
+    }
+
+    if (event->isAutoRepeat()) return true;
+    if (usage > 0) {
+        if (press) m_keyboardPressedKeys.insert(usage);
+        else m_keyboardPressedKeys.remove(usage);
+    }
+
+    QByteArray report(8, char(0));
+    auto modifiers = event->modifiers();
+    if (event->key() == Qt::Key_Shift)
+        modifiers = press ? (modifiers | Qt::ShiftModifier) : (modifiers & ~Qt::ShiftModifier);
+    if (event->key() == Qt::Key_Control)
+        modifiers = press ? (modifiers | Qt::ControlModifier) : (modifiers & ~Qt::ControlModifier);
+    if (event->key() == Qt::Key_Alt)
+        modifiers = press ? (modifiers | Qt::AltModifier) : (modifiers & ~Qt::AltModifier);
+    if (event->key() == Qt::Key_Meta)
+        modifiers = press ? (modifiers | Qt::MetaModifier) : (modifiers & ~Qt::MetaModifier);
+    quint8 mask = 0;
+    if (modifiers & Qt::ControlModifier) mask |= 0x01;
+    if (modifiers & Qt::ShiftModifier) mask |= 0x02;
+    if (modifiers & Qt::AltModifier) mask |= 0x04;
+    if (modifiers & Qt::MetaModifier) mask |= 0x08;
+    report[0] = char(mask);
+
+    QList<int> keys = m_keyboardPressedKeys.values();
+    std::sort(keys.begin(), keys.end());
+    for (int i = 0; i < keys.size() && i < 6; ++i)
+        report[2 + i] = char(keys.at(i));
+
+    return sendHid(NativeHid::input(NativeHid::KeyboardId, report));
+}
+
 void ToolForm::togglePhysicalKeyboard()
 {
     if (m_keyboardEnabled) {
@@ -269,6 +353,7 @@ void ToolForm::togglePhysicalKeyboard()
             return;
         }
         m_keyboardEnabled = false;
+        m_keyboardPressedKeys.clear();
         m_keyboardBtn->setChecked(false);
         m_keyboardBtn->setToolTip(QStringLiteral("Usar teclado físico do PC no Android"));
         return;
@@ -295,6 +380,7 @@ void ToolForm::stopNativeInput()
     m_gamepadEnabled = false;
     m_gamepadRegistered = false;
     m_keyboardEnabled = false;
+    m_keyboardPressedKeys.clear();
     m_lastGamepadReport.clear();
     if (m_gamepadBtn) m_gamepadBtn->setChecked(false);
     if (m_keyboardBtn) m_keyboardBtn->setChecked(false);
