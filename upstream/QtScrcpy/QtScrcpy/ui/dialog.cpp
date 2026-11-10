@@ -194,7 +194,8 @@ Dialog::Dialog(QWidget *parent) : QWidget(parent), ui(new Ui::Widget)
     });
 
     m_hideIcon = new QSystemTrayIcon(this);
-    m_hideIcon->setIcon(QIcon(":/image/tray/logo.png"));
+    m_hideIcon->setIcon(qApp->windowIcon().isNull()
+                        ? QIcon(":/image/tray/logo.png") : qApp->windowIcon());
     m_menu = new QMenu(this);
     m_quit = new QAction(this);
     m_showWindow = new QAction(this);
@@ -416,6 +417,7 @@ void Dialog::initUI()
         button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     }
     setWindowTitle(QStringLiteral("WELLS Conect"));
+    if (!qApp->windowIcon().isNull()) setWindowIcon(qApp->windowIcon());
     resize(650, 565);
 }
 
