@@ -149,6 +149,10 @@ void ToolForm::setupRemodeledToolbar()
 
     // Controles descartados da barra do modo tela, sem excluir o
     // código original de comunicação com o Android.
+    // Controles nativos não selecionados no terceiro modelo permanecem
+    // implementados, mas ficam fora da barra visual.
+    ui->groupControlBtn->hide();
+    ui->menuBtn->hide();
     ui->expandSettingsBtn->hide();
     ui->touchBtn->hide();
     ui->openScreenBtn->hide();
@@ -315,6 +319,10 @@ void ToolForm::updateCameraMode()
     ui->cameraZoomOutBtn->setVisible(camera);
     ui->cameraZoomInBtn->setVisible(camera);
 
+    // Controles nativos não selecionados no terceiro modelo permanecem
+    // implementados, mas ficam fora da barra visual.
+    ui->groupControlBtn->hide();
+    ui->menuBtn->hide();
     ui->expandSettingsBtn->hide();
     ui->touchBtn->hide();
     ui->openScreenBtn->hide();
