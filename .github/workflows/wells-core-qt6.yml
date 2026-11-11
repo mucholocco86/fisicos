@@ -179,6 +179,38 @@ jobs:
                   resized.save(path, format='WEBP', lossless=True)
               else:
                   resized.save(path, format='PNG')
+          # Adaptive icons (Android 8+) take precedence over legacy mipmap PNGs.
+          # The original XML points to the green Android vector, so replace BOTH
+          # foreground/background layers with the approved Wells artwork.
+          from xml.etree import ElementTree as ET
+          drawable = root / 'res' / 'drawable-nodpi'
+          drawable.mkdir(parents=True, exist_ok=True)
+          canvas = 432
+          # Android adaptive foreground safe zone is the central 66/108 region.
+          foreground = Image.new('RGBA', (canvas, canvas), (0, 0, 0, 0))
+          artwork = original.resize((264, 264), Image.Resampling.LANCZOS)
+          foreground.alpha_composite(artwork, ((canvas-264)//2, (canvas-264)//2))
+          foreground.save(drawable / 'wells_icon_foreground.png')
+          Image.new('RGBA', (canvas, canvas), (16, 16, 20, 255)).save(drawable / 'wells_icon_background.png')
+          android = '{http://schemas.android.com/apk/res/android}'
+          adaptive_count = 0
+          for kind, name in refs:
+              for xml_path in (root / 'res').glob(f'{kind}*/{name}.xml'):
+                  tree = ET.parse(xml_path)
+                  top = tree.getroot()
+                  if top.tag != 'adaptive-icon':
+                      raise RuntimeError(f'Unexpected adaptive icon format: {xml_path}')
+                  bg = top.find('background')
+                  fg = top.find('foreground')
+                  if bg is None or fg is None:
+                      raise RuntimeError(f'Adaptive icon layers missing: {xml_path}')
+                  bg.set(android + 'drawable', '@drawable/wells_icon_background')
+                  fg.set(android + 'drawable', '@drawable/wells_icon_foreground')
+                  tree.write(xml_path, encoding='utf-8', xml_declaration=True)
+                  adaptive_count += 1
+          if adaptive_count < 2:
+              raise RuntimeError(f'Expected normal and round adaptive icons, found {adaptive_count}')
+          print('Adaptive icon XML resources updated:', adaptive_count)
           print('Icon refs:', refs)
           print('Recursos do ícone substituídos:', len(matches))
           '@ | python -
