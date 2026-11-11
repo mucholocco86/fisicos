@@ -1,5 +1,8 @@
 #include <QAudioOutput>
 #include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QMetaObject>
 #include <QElapsedTimer>
 #include <QHostAddress>
 #include <QTcpSocket>
@@ -87,7 +90,13 @@ bool AudioOutput::runSndcpyProcess(const QString &serial, int port, bool wait)
 
 #ifdef Q_OS_WIN32
     QStringList params{serial, QString::number(port)};
-    m_sndcpy.start("sndcpy.bat", params);
+    const QString script = QDir(QCoreApplication::applicationDirPath()).filePath("sndcpy.bat");
+    if (!QFileInfo::exists(script)) {
+        qWarning() << "AudioOutput::missing sndcpy script:" << script;
+        return false;
+    }
+    m_sndcpy.setWorkingDirectory(QCoreApplication::applicationDirPath());
+    m_sndcpy.start(script, params);
 #else
     QStringList params{"sndcpy.sh", serial, QString::number(port)};
     m_sndcpy.setWorkingDirectory(QCoreApplication::applicationDirPath());
@@ -103,7 +112,11 @@ bool AudioOutput::runSndcpyProcess(const QString &serial, int port, bool wait)
         return false;
     }
     if (!m_sndcpy.waitForFinished()) {
-        qWarning() << "AudioOutput::sndcpy process crashed";
+        qWarning() << "AudioOutput::sndcpy script did not finish successfully:" << m_sndcpy.errorString();
+        return false;
+    }
+    if (m_sndcpy.exitStatus() != QProcess::NormalExit || m_sndcpy.exitCode() != 0) {
+        qWarning() << "AudioOutput::sndcpy script failed, exit code:" << m_sndcpy.exitCode();
         return false;
     }
 
@@ -208,18 +221,21 @@ void AudioOutput::startRecvData(int port)
         qInfo("AudioOutput::audio socket connect success");
     });
     connect(audioSocket, &QIODevice::readyRead, audioSocket, [this, audioSocket]() {
-        qint64 recv = audioSocket->bytesAvailable();
-        //qDebug() << "AudioOutput::recv data:" << recv;
-
-        if (!m_outputDevice) {
-            return;
+        // QAudioSink and its QIODevice belong to the GUI thread. Writing from
+        // the socket worker thread is unsafe on Qt 6 (and can silently fail).
+        const QByteArray samples = audioSocket->readAll();
+        if (!samples.isEmpty()) {
+            QMetaObject::invokeMethod(this, [this, samples]() {
+                if (m_outputDevice) {
+                    const qint64 written = m_outputDevice->write(samples);
+                    if (written < 0) {
+                        qWarning() << "AudioOutput::PCM write failed:" << m_outputDevice->errorString();
+                    } else if (written < samples.size()) {
+                        qWarning() << "AudioOutput::PCM output buffer full; dropped" << (samples.size() - written) << "bytes";
+                    }
+                }
+            }, Qt::QueuedConnection);
         }
-        if (m_buffer.capacity() < recv) {
-            m_buffer.reserve(recv);
-        }
-
-        qint64 count = audioSocket->read(m_buffer.data(), recv);
-        m_outputDevice->write(m_buffer.data(), count);
     });
     connect(audioSocket, &QTcpSocket::stateChanged, audioSocket, [](QAbstractSocket::SocketState state) {
         qInfo() << "AudioOutput::audio socket state changed:" << state;
