@@ -158,11 +158,23 @@ Dialog::Dialog(QWidget *parent) : QWidget(parent), ui(new Ui::Widget)
             //log = m_adb.getStdOut();
             if (args.contains("devices")) {
                 QStringList devices = m_adb.getDevicesSerialFromStdOut();
+                // Preserve the user's selected ADB serial across refreshes.
+                const int oldRow = ui->connectedPhoneList->currentRow();
+                const QString oldSerial = oldRow >= 0 && oldRow < ui->serialBox->count()
+                    ? ui->serialBox->itemText(oldRow) : ui->serialBox->currentText();
                 ui->serialBox->clear();
                 ui->connectedPhoneList->clear();
                 for (auto &item : devices) {
                     ui->serialBox->addItem(item);
                     ui->connectedPhoneList->addItem(Config::getInstance().getNickName(item) + "-" + item);
+                }
+                const int restored = ui->serialBox->findText(oldSerial);
+                if (restored >= 0) {
+                    ui->connectedPhoneList->setCurrentRow(restored);
+                } else {
+                    ui->connectedPhoneList->clearSelection();
+                    ui->connectedPhoneList->setCurrentRow(-1);
+                    ui->serialBox->setCurrentIndex(-1);
                 }
             } else if (args.contains("show") && args.contains("wlan0")) {
                 QString ip = m_adb.getDeviceIPFromStdOut();
@@ -286,6 +298,23 @@ void Dialog::initUI()
     // Intel Mac：移除 VideoToolbox 选项，用户只看到 FFmpeg
     ui->decodeModeBox->removeItem(1);
 #endif
+
+    // Keep the existing controls aligned with the single-click device selection.
+    connect(ui->connectedPhoneList, &QListWidget::currentRowChanged, this, [this](int row) {
+        if (row < 0 || row >= ui->serialBox->count()) return;
+        ui->serialBox->setCurrentIndex(row);
+        const QString serial = ui->serialBox->itemText(row).trimmed();
+        ui->userNameEdt->setText(Config::getInstance().getNickName(serial));
+        if (serial.contains(':')) {
+            const int colon = serial.lastIndexOf(':');
+            ui->deviceIpEdt->setEditText(serial.left(colon));
+            ui->devicePortEdt->setEditText(serial.mid(colon + 1));
+        } else {
+            // Never leave another device's Wi-Fi address displayed as if it
+            // belonged to the selected USB device.
+            ui->deviceIpEdt->setEditText(QString());
+        }
+    });
 
     // 加载IP历史记录
     loadIpHistory();
@@ -1477,18 +1506,19 @@ void Dialog::on_recordScreenCheck_clicked(bool checked)
 
 void Dialog::on_usbConnectBtn_clicked()
 {
-    on_stopAllServerBtn_clicked();
-    delayMs(200);
-    on_updateDevice_clicked();
-    delayMs(200);
-
-    int firstUsbDevice = findDeviceFromeSerialBox(false);
-    if (-1 == firstUsbDevice) {
-        qWarning() << "No use device is found!";
+    const int row = ui->connectedPhoneList->currentRow();
+    if (row < 0 || row >= ui->serialBox->count()) {
+        QMessageBox::information(this, QStringLiteral("Conexão USB"),
+            QStringLiteral("Selecione um dispositivo na lista superior."));
         return;
     }
-    ui->serialBox->setCurrentIndex(firstUsbDevice);
-
+    const QString serial = ui->serialBox->itemText(row).trimmed();
+    if (serial.contains(':')) {
+        QMessageBox::information(this, QStringLiteral("Conexão USB"),
+            QStringLiteral("O dispositivo selecionado está listado como Wi-Fi. Selecione sua conexão USB."));
+        return;
+    }
+    ui->serialBox->setCurrentIndex(row);
     on_startServerBtn_clicked();
 }
 
@@ -1551,14 +1581,21 @@ void Dialog::runWifiAdbStep(const QStringList &arguments,
 void Dialog::on_wifiConnectBtn_clicked()
 {
     if (m_wifiConnecting) return;
-    const QString selected = ui->serialBox->currentText().trimmed();
+    const int row = ui->connectedPhoneList->currentRow();
+    if (row < 0 || row >= ui->serialBox->count()) {
+        QMessageBox::information(this, QStringLiteral("Conexão Wi-Fi"),
+            QStringLiteral("Selecione um dispositivo na lista superior."));
+        return;
+    }
+    ui->serialBox->setCurrentIndex(row);
+    const QString selected = ui->serialBox->itemText(row).trimmed();
     QString port = ui->devicePortEdt->currentText().trimmed();
     if (port.isEmpty() && ui->devicePortEdt->lineEdit()) {
         port = ui->devicePortEdt->lineEdit()->placeholderText().trimmed();
     }
     if (port.isEmpty()) port = QStringLiteral("5555");
     const bool usbSelected = !selected.isEmpty() && !selected.contains(':');
-    const QString savedIp = ui->deviceIpEdt->currentText().trimmed();
+    const QString savedIp = usbSelected ? QString() : ui->deviceIpEdt->currentText().trimmed();
 
     if (!usbSelected && savedIp.isEmpty()) {
         if (!selected.isEmpty() && selected.contains(':')) {
@@ -1635,9 +1672,9 @@ void Dialog::on_wifiConnectBtn_clicked()
 
 void Dialog::on_connectedPhoneList_itemDoubleClicked(QListWidgetItem *item)
 {
+    // Double click no longer starts mirroring; selection is handled by the
+    // currentRowChanged connection below.
     Q_UNUSED(item);
-    ui->serialBox->setCurrentIndex(ui->connectedPhoneList->currentRow());
-    on_startServerBtn_clicked();
 }
 
 void Dialog::on_updateNameBtn_clicked()
