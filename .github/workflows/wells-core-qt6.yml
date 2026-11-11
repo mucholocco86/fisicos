@@ -106,12 +106,17 @@ jobs:
       - name: Empacotar apenas se binário real foi compilado
         shell: pwsh
         run: |
-          $exe = Get-ChildItem upstream/QtScrcpy/output -Filter QtScrcpy.exe -Recurse | Select-Object -First 1
+          $exe = Get-ChildItem upstream/QtScrcpy/output -Filter QtScrcpy.exe -Recurse | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+          Write-Host "Selecting compiled application: $($exe.FullName)"
           if (!$exe) { throw "QtScrcpy real não foi compilado" }
           New-Item -ItemType Directory dist -Force | Out-Null
           Copy-Item "$($exe.Directory.FullName)/*" dist -Recurse -Force
           Copy-Item upstream/QtScrcpy/QtScrcpy/res/wells_connect_icon.png dist/WELLS_CONECT_ICON.png -Force
           Copy-Item upstream/QtScrcpy/QtScrcpy/res/QtScrcpy.ico dist/WELLS_CONECT_ICON.ico -Force
+          # Validate that the icon is actually embedded in the compiled Windows PE,
+          # not merely placed beside the executable as an .ico file.
+          $exeHash = (Get-FileHash dist/QtScrcpy.exe -Algorithm SHA256).Hash
+          Write-Host "Compiled exe SHA256: $exeHash"
           Rename-Item dist/QtScrcpy.exe WellsConect.exe
           Copy-Item upstream/QtScrcpy/config dist/config -Recurse -Force
           Copy-Item upstream/QtScrcpy/keymap dist/keymap -Recurse -Force
@@ -141,6 +146,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           # Apktool recompila recursos; o pacote precisa de nova assinatura Android.
           $apk = 'dist/sndcpy.apk'
+          $originalApkHash = (Get-FileHash $apk -Algorithm SHA256).Hash
+          Write-Host "Original APK SHA256: $originalApkHash"
           if (!(Test-Path $apk)) { throw 'sndcpy.apk original ausente' }
           Invoke-WebRequest 'https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar' -OutFile "$env:RUNNER_TEMP/apktool.jar"
           java -jar "$env:RUNNER_TEMP/apktool.jar" d -f $apk -o "$env:RUNNER_TEMP/sndcpy-decoded"
@@ -183,6 +190,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Assinatura do APK falhou' }
           & $apksigner verify --verbose $apk
           if ($LASTEXITCODE -ne 0) { throw 'APK personalizado não passou na verificação de assinatura' }
+          $newApkHash = (Get-FileHash $apk -Algorithm SHA256).Hash
+          if ($newApkHash -eq $originalApkHash) { throw 'APK personalizado é idêntico ao APK original' }
+          Write-Host "Personalized APK SHA256: $newApkHash"
           Write-Host 'AVISO: APK reassinado. Se o original estiver instalado, desinstale com adb uninstall com.rom1v.sndcpy antes de instalar a nova versão.'
       - uses: actions/upload-artifact@v4
         with:
