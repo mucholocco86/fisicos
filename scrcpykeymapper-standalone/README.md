@@ -17,3 +17,8 @@ GitHub Actions: `ScrcpyKeyMapper standalone Windows`. O workflow importa a base 
 
 ## Estado
 Protótipo inicial; não substituir projetos finalizados.
+
+## Personalização aprovada
+- Ícone exclusivo em carbono e vermelho, incorporado ao executável Windows por recurso .rc (arte reduzida para uso como ícone).
+- Seletor de Background abre na pasta Imagens do Windows, sem alterar o editor original.
+- Exportação JSON permanece independente do Wells Conect.

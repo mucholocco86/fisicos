@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <QApplication>
+#include <QIcon>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -19,6 +21,27 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+class KeyMapperPage final : public QWebEnginePage {
+public:
+    using QWebEnginePage::QWebEnginePage;
+protected:
+    QStringList chooseFiles(FileSelectionMode mode, const QStringList &oldFiles,
+                            const QStringList &acceptedMimeTypes) override {
+        Q_UNUSED(oldFiles);
+        const bool image = std::any_of(acceptedMimeTypes.cbegin(), acceptedMimeTypes.cend(),
+            [](const QString &mime) { return mime.startsWith("image/"); });
+        const QString start = image
+            ? QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)
+            : QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        const QString filter = image ? QStringLiteral("Imagens (*.png *.jpg *.jpeg *.bmp *.webp *.gif);;Todos os arquivos (*)")
+                                     : QStringLiteral("Arquivos JSON (*.json);;Todos os arquivos (*)");
+        if (mode == QWebEnginePage::FileSelectOpenMultiple)
+            return QFileDialog::getOpenFileNames(view(), QStringLiteral("Selecionar arquivos"), start, filter);
+        const QString chosen = QFileDialog::getOpenFileName(view(),
+            image ? QStringLiteral("Selecionar imagem de fundo") : QStringLiteral("Abrir arquivo"), start, filter);
+        return chosen.isEmpty() ? QStringList{} : QStringList{chosen};
+    }
+};
 class LocalAssetServer final : public QObject {
 public:
     explicit LocalAssetServer(QString root, QObject *parent = nullptr)
@@ -71,6 +94,7 @@ int main(int argc, char **argv) {
     QApplication app(argc, argv);
     app.setApplicationName("ScrcpyKeyMapper");
     app.setOrganizationName("Wells");
+    app.setWindowIcon(QIcon(":/keymapper.ico"));
     const QString webRoot = QCoreApplication::applicationDirPath() + "/editor";
     LocalAssetServer assets(webRoot);
     if (!assets.start()) {
@@ -81,6 +105,7 @@ int main(int argc, char **argv) {
     window.setWindowTitle("ScrcpyKeyMapper — Editor independente");
     window.setWindowFlags(Qt::Window | Qt::WindowMinMaxButtonsHint | Qt::WindowCloseButtonHint);
     auto *view = new QWebEngineView(&window);
+    view->setPage(new KeyMapperPage(view));
     window.setCentralWidget(view);
     window.resize(1180, 760);
     window.setMinimumSize(800, 540);

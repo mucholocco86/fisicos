@@ -66,6 +66,18 @@ jobs:
           arch: win64_msvc2022_64
           modules: 'qtwebengine qtwebchannel qtpositioning'
           cache: true
+      - name: Gerar icone Windows a partir da arte aprovada
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          @'
+          from PIL import Image
+          from pathlib import Path
+          p = Path("scrcpykeymapper-standalone")
+          Image.open(p / "assets" / "keymapper-icon.png").convert("RGBA").save(
+              p / "keymapper.ico", format="ICO", sizes=[(16,16),(24,24),(32,32),(48,48),(64,64)]
+          )
+          '@ | python -
       - name: Compilar C++/Qt
         shell: pwsh
         run: |
