@@ -158,21 +158,28 @@ jobs:
           import re
           root = Path(__import__('os').environ['RUNNER_TEMP']) / 'sndcpy-decoded'
           manifest = (root / 'AndroidManifest.xml').read_text(encoding='utf-8')
-          m = re.search(r'android:icon="@(mipmap|drawable)/([a-zA-Z0-9_]+)"', manifest)
-          if not m:
-              raise RuntimeError('Ícone Android não identificado; preservando APK em vez de alterar recurso errado')
-          kind, name = m.groups()
+          refs = re.findall(r'android:(?:icon|roundIcon)="@(mipmap|drawable)/([a-zA-Z0-9_]+)"', manifest)
+          if not refs:
+              raise RuntimeError('Ícones Android não identificados no manifesto')
           original = Image.open('upstream/QtScrcpy/QtScrcpy/res/wells_connect_icon.png').convert('RGBA')
-          matches = list((root / 'res').glob(f'{kind}*/{name}.png')) + list((root / 'res').glob(f'{kind}*/{name}.webp'))
-          if not matches:
-              raise RuntimeError(f'Ícone {kind}/{name} não tem recursos de imagem diretos; requer tratamento específico')
-          for path in matches:
+          matches = set()
+          for kind, name in refs:
+              found = list((root / 'res').glob(f'{kind}*/{name}.png'))
+              found += list((root / 'res').glob(f'{kind}*/{name}.webp'))
+              if not found:
+                  raise RuntimeError(f'Nenhuma imagem encontrada para {kind}/{name}')
+              matches.update(found)
+          # Android launchers may choose android:roundIcon instead of android:icon.
+          # Require that both families are actually updated when provided.
+          for path in sorted(matches):
               with Image.open(path) as target:
                   size = target.size
-              original.resize(size, Image.Resampling.LANCZOS).save(path, format='PNG')
+              resized = original.resize(size, Image.Resampling.LANCZOS)
               if path.suffix == '.webp':
-                  # Preserve original resource format and extension.
-                  original.resize(size, Image.Resampling.LANCZOS).save(path, format='WEBP', lossless=True)
+                  resized.save(path, format='WEBP', lossless=True)
+              else:
+                  resized.save(path, format='PNG')
+          print('Icon refs:', refs)
           print('Recursos do ícone substituídos:', len(matches))
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Falha ao substituir recursos do ícone' }
