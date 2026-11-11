@@ -33,6 +33,7 @@ jobs:
             git add -- $target
             git commit -m 'vendor: importar ScrcpyKeyMapper original no commit 022870e2' 
             git push origin HEAD:feature/scrcpykeymapper-standalone-clean
+          }
       - name: Preparar editor offline sem modificar original
         shell: pwsh
         run: |
