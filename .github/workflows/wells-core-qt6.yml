@@ -190,6 +190,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Assinatura do APK falhou' }
           & $apksigner verify --verbose $apk
           if ($LASTEXITCODE -ne 0) { throw 'APK personalizado não passou na verificação de assinatura' }
+          # Build-time metadata captures the installed-package signing transition.
+          & $apksigner verify --print-certs $apk
+          if ($LASTEXITCODE -ne 0) { throw 'APK signing certificate check failed' }
           $newApkHash = (Get-FileHash $apk -Algorithm SHA256).Hash
           if ($newApkHash -eq $originalApkHash) { throw 'APK personalizado é idêntico ao APK original' }
           Write-Host "Personalized APK SHA256: $newApkHash"
