@@ -49,7 +49,7 @@
 
 // user config
 #define COMMON_RECORD_KEY "RecordPath"
-#define COMMON_RECORD_DEF ""
+#define COMMON_RECORD_DEF (QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + QStringLiteral("/WELLS Conect"))
 
 #define COMMON_BITRATE_KEY "BitRate"
 // Perfil inicial de espelhamento PT-BR: 1080p, H.264 automatico,
