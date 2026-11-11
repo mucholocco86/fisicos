@@ -916,6 +916,22 @@
               </property>
              </widget>
             </item>
+            <item row="3" column="1">
+             <widget class="QCheckBox" name="wellsNativeAudioCheck">
+              <property name="toolTip">
+               <string>Ao ativar o áudio nativo, não utilize simultaneamente o reprodutor de áudio padrão do Wells Conect. Isso poderá causar distorções, falhas de reprodução ou conflitos entre os sistemas de áudio.</string>
+              </property>
+              <property name="text">
+               <string>Áudio nativo</string>
+              </property>
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="checked">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>
