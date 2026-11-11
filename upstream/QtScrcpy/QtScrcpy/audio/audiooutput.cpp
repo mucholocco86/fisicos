@@ -53,6 +53,10 @@ bool AudioOutput::start(const QString& serial, int port)
     }
 
     startAudioOutput();
+    if (!m_outputDevice) {
+        qWarning() << "AudioOutput::sndcpy playback initialization failed; socket will not be started.";
+        return false;
+    }
     startRecvData(port);
 
     m_running = true;
@@ -143,8 +147,17 @@ void AudioOutput::startAudioOutput()
     format.setChannelCount(2);
     format.setSampleFormat(QAudioFormat::Int16);
     QAudioDevice defaultDevice = QMediaDevices::defaultAudioOutput();
+    if (defaultDevice.isNull()) {
+        qWarning() << "AudioOutput::Windows/Qt has no default audio output device.";
+        return;
+    }
+    qInfo() << "AudioOutput::output device:" << defaultDevice.description()
+            << "preferred format:" << defaultDevice.preferredFormat()
+            << "sndcpy format:" << format;
     if (!defaultDevice.isFormatSupported(format)) {
-        qWarning() << "AudioOutput::audio format not supported, cannot play audio.";
+        // sndcpy sends raw 48 kHz stereo signed 16-bit PCM. Do not relabel
+        // the incoming samples as 44.1 kHz: that would change pitch/speed.
+        qWarning() << "AudioOutput::48kHz stereo Int16 PCM is unsupported by the selected output device.";
         return;
     }
     m_audioSink = new QAudioSink(defaultDevice, format, this);
