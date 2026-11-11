@@ -36,8 +36,8 @@ protected:
         const QString filter = image ? QStringLiteral("Imagens (*.png *.jpg *.jpeg *.bmp *.webp *.gif);;Todos os arquivos (*)")
                                      : QStringLiteral("Arquivos JSON (*.json);;Todos os arquivos (*)");
         if (mode == QWebEnginePage::FileSelectOpenMultiple)
-            return QFileDialog::getOpenFileNames(view(), QStringLiteral("Selecionar arquivos"), start, filter);
-        const QString chosen = QFileDialog::getOpenFileName(view(),
+            return QFileDialog::getOpenFileNames(nullptr, QStringLiteral("Selecionar arquivos"), start, filter);
+        const QString chosen = QFileDialog::getOpenFileName(nullptr,
             image ? QStringLiteral("Selecionar imagem de fundo") : QStringLiteral("Abrir arquivo"), start, filter);
         return chosen.isEmpty() ? QStringList{} : QStringList{chosen};
     }
