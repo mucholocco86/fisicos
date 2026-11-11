@@ -237,6 +237,9 @@ void AudioOutput::startRecvData(int port)
         }
         audioSocket->deleteLater();
     });
+    connect(audioSocket, &QTcpSocket::errorOccurred, this, [this, audioSocket](QAbstractSocket::SocketError error) {
+        qWarning() << "AudioOutput::sndcpy TCP error:" << error << audioSocket->errorString();
+    });
 
     connect(audioSocket, &QTcpSocket::connected, this, []() {
         qInfo("AudioOutput::audio socket connect success");
@@ -276,9 +279,7 @@ void AudioOutput::startRecvData(int port)
 
     });
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
-    connect(audioSocket, &QTcpSocket::errorOccurred, audioSocket, [](QAbstractSocket::SocketError error) {
-        qInfo() << "AudioOutput::audio socket error occurred:" << error;
-    });
+    // Error reporting is handled by the parent-thread callback above.
 #else
     connect(audioSocket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::error), audioSocket, [](QAbstractSocket::SocketError error) {
         qInfo() << "AudioOutput::audio socket error occurred:" << error;
