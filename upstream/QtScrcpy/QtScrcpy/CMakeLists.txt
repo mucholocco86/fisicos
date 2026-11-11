@@ -306,15 +306,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 endif()
 
 
-# Embed the approved Wells icon in the Windows PE itself. This is distinct
-# from the Qt runtime window icon and from any .ico distributed alongside it.
-if(WIN32)
-    set(WELLS_ICON_RC "${CMAKE_CURRENT_BINARY_DIR}/wells_connect_icon.rc")
-    set(WELLS_ICON_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/res/QtScrcpy.ico")
-    file(WRITE "${WELLS_ICON_RC}" "IDI_APP_ICON ICON \"${WELLS_ICON_NATIVE_PATH}\"\n")
-    list(APPEND QC_PROJECT_SOURCES "${WELLS_ICON_RC}")
-endif()
-
 add_executable(${PROJECT_NAME} ${QC_RUNTIME_TYPE} ${QC_PROJECT_SOURCES})
 
 # Log compile definitions
