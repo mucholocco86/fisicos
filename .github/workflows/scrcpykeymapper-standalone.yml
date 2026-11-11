@@ -1,0 +1,86 @@
+name: ScrcpyKeyMapper standalone Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/scrcpykeymapper-standalone-clean]
+    paths:
+      - 'scrcpykeymapper-standalone/**'
+      - '.github/workflows/scrcpykeymapper-standalone.yml'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Importar origem oficial limpa, sem misturar protótipos
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = 'scrcpykeymapper-standalone/original'
+          if (-not (Test-Path "$target/index.html")) {
+            $url = 'https://github.com/w4po/ScrcpyKeyMapper/archive/022870e2caf905046c8e7502d4053bb5f171c1e4.zip'
+            Invoke-WebRequest -Uri $url -OutFile upstream.zip
+            Expand-Archive upstream.zip -DestinationPath upstream-extracted
+            $source = (Get-ChildItem upstream-extracted -Directory | Select-Object -First 1).FullName
+            New-Item -ItemType Directory -Force $target | Out-Null
+            Copy-Item "$source/*" $target -Recurse -Force
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -- $target
+            git commit -m 'vendor: importar ScrcpyKeyMapper original no commit 022870e2' 
+            git push origin HEAD:feature/scrcpykeymapper-standalone-clean
+      - name: Preparar editor offline sem modificar original
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $project = 'scrcpykeymapper-standalone'
+          $editor = "$project/editor"
+          New-Item -ItemType Directory -Force $editor | Out-Null
+          Copy-Item "$project/original/*" $editor -Recurse -Force
+          npm install --prefix web-deps --no-save --no-audit --no-fund bootstrap@5.3.3 bootstrap-icons@1.11.3 flag-icons@7.0.0 konva@9.2.3
+          New-Item -ItemType Directory -Force "$editor/vendor/bootstrap" | Out-Null
+          New-Item -ItemType Directory -Force "$editor/vendor/bootstrap-icons" | Out-Null
+          New-Item -ItemType Directory -Force "$editor/vendor/flag-icons" | Out-Null
+          New-Item -ItemType Directory -Force "$editor/vendor/konva" | Out-Null
+          Copy-Item 'web-deps/node_modules/bootstrap/dist/*' "$editor/vendor/bootstrap" -Recurse -Force
+          Copy-Item 'web-deps/node_modules/bootstrap-icons/font/*' "$editor/vendor/bootstrap-icons" -Recurse -Force
+          Copy-Item 'web-deps/node_modules/flag-icons/css/*' "$editor/vendor/flag-icons" -Recurse -Force
+          Copy-Item 'web-deps/node_modules/flag-icons/flags' "$editor/vendor/flag-icons/flags" -Recurse -Force
+          Copy-Item 'web-deps/node_modules/konva/konva.min.js' "$editor/vendor/konva/konva.min.js"
+          $html = Get-Content "$editor/index.html" -Raw
+          $html = $html.Replace('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css', 'vendor/bootstrap/css/bootstrap.min.css')
+          $html = $html.Replace('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css', 'vendor/bootstrap-icons/bootstrap-icons.css')
+          $html = $html.Replace('https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.0.0/css/flag-icons.min.css', 'vendor/flag-icons/flag-icons.min.css')
+          $html = $html.Replace('https://unpkg.com/konva@9.2.3/konva.min.js', 'vendor/konva/konva.min.js')
+          $html = $html.Replace('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js', 'vendor/bootstrap/js/bootstrap.bundle.min.js')
+          Set-Content "$editor/index.html" $html -Encoding utf8
+      - name: Instalar Qt6 WebEngine
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: win64_msvc2022_64
+          modules: 'qtwebengine qtwebchannel qtpositioning'
+          cache: true
+      - name: Compilar C++/Qt
+        shell: pwsh
+        run: |
+          cmake -S scrcpykeymapper-standalone -B build-keymapper -G 'Visual Studio 17 2022' -A x64 -DCMAKE_PREFIX_PATH="$env:Qt6_DIR/../.."
+          cmake --build build-keymapper --config Release --parallel
+      - name: Empacotar aplicativo portátil
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package | Out-Null
+          Copy-Item 'build-keymapper/Release/ScrcpyKeyMapper.exe' package/
+          Copy-Item 'scrcpykeymapper-standalone/editor' package/editor -Recurse
+          Copy-Item 'scrcpykeymapper-standalone/original/LICENSE' package/LICENSE-original.txt
+          & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --webengine --no-translations package/ScrcpyKeyMapper.exe
+          Compress-Archive -Path 'package/*' -DestinationPath ScrcpyKeyMapper-Standalone-Windows.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ScrcpyKeyMapper-Standalone-Windows
+          path: ScrcpyKeyMapper-Standalone-Windows.zip
+          if-no-files-found: error
