@@ -1,7 +1,7 @@
 name: WELLS CONECT - Nucleo real QtScrcpy Qt6
 on:
   push:
-    branches: [release/wells-conect-icone-definitivo, fix/wells-conect-audio-config-apk-icon]
+    branches: [release/wells-conect-icone-definitivo, fix/wells-conect-audio-config-apk-icon, fix/wells-conect-device-selection-captures]
     paths:
       - '.github/workflows/wells-core-qt6.yml'
       - 'upstream/QtScrcpy/**'
