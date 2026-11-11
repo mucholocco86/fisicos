@@ -3,6 +3,9 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QMetaObject>
+#include <QByteArray>
+#include <QTimer>
+#include <QtEndian>
 #include <QElapsedTimer>
 #include <QHostAddress>
 #include <QTcpSocket>
@@ -35,17 +38,17 @@ AudioOutput::AudioOutput(QObject *parent)
 
 AudioOutput::~AudioOutput()
 {
-    if (QProcess::NotRunning != m_sndcpy.state()) {
-        m_sndcpy.kill();
-    }
     stop();
+    if (m_sndcpy.state() != QProcess::NotRunning) {
+        m_sndcpy.kill();
+        m_sndcpy.waitForFinished(3000);
+    }
 }
 
 bool AudioOutput::start(const QString& serial, int port)
 {
-    if (m_running) {
-        stop();
-    }
+    // A failed previous attempt must not leave the sink or socket behind.
+    stop();
 
     QElapsedTimer timeConsumeCount;
     timeConsumeCount.start();
@@ -58,6 +61,7 @@ bool AudioOutput::start(const QString& serial, int port)
     startAudioOutput();
     if (!m_outputDevice) {
         qWarning() << "AudioOutput::sndcpy playback initialization failed; socket will not be started.";
+        stopAudioOutput();
         return false;
     }
     startRecvData(port);
@@ -68,11 +72,7 @@ bool AudioOutput::start(const QString& serial, int port)
 
 void AudioOutput::stop()
 {
-    if (!m_running) {
-        return;
-    }
     m_running = false;
-
     stopRecvData();
     stopAudioOutput();
 }
@@ -167,12 +167,21 @@ void AudioOutput::startAudioOutput()
     qInfo() << "AudioOutput::output device:" << defaultDevice.description()
             << "preferred format:" << defaultDevice.preferredFormat()
             << "sndcpy format:" << format;
+    m_convertPcmToFloat = false;
     if (!defaultDevice.isFormatSupported(format)) {
-        // sndcpy sends raw 48 kHz stereo signed 16-bit PCM. Do not relabel
-        // the incoming samples as 44.1 kHz: that would change pitch/speed.
-        qWarning() << "AudioOutput::48kHz stereo Int16 PCM is unsupported by the selected output device.";
-        return;
+        // Preserve 48 kHz/stereo. Convert 16-bit signed little-endian PCM to
+        // float only when Windows/Qt refuses Int16, e.g. FxSound virtual output.
+        QAudioFormat floatFormat = format;
+        floatFormat.setSampleFormat(QAudioFormat::Float);
+        if (!defaultDevice.isFormatSupported(floatFormat)) {
+            qWarning() << "AudioOutput::output does not support 48 kHz stereo Int16 or Float PCM.";
+            return;
+        }
+        format = floatFormat;
+        m_convertPcmToFloat = true;
+        qInfo() << "AudioOutput::converting sndcpy Int16 PCM to 48 kHz stereo Float for output device.";
     }
+    m_pcmRemainder.clear();
     m_audioSink = new QAudioSink(defaultDevice, format, this);
     m_outputDevice = m_audioSink->start();
     if (!m_outputDevice) {
@@ -181,6 +190,11 @@ void AudioOutput::startAudioOutput()
         m_audioSink = nullptr;
         return;
     }
+    connect(m_audioSink, &QAudioSink::stateChanged, this, [this](QAudio::State state) {
+        if (m_audioSink && state == QAudio::StoppedState && m_audioSink->error() != QAudio::NoError) {
+            qWarning() << "AudioOutput::sink error:" << m_audioSink->error();
+        }
+    });
 #endif
 }
 
@@ -200,6 +214,10 @@ void AudioOutput::stopAudioOutput()
     }
 #endif
     m_outputDevice = nullptr;
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    m_pcmRemainder.clear();
+    m_convertPcmToFloat = false;
+#endif
 }
 
 void AudioOutput::startRecvData(int port)
@@ -208,33 +226,48 @@ void AudioOutput::startRecvData(int port)
         stopRecvData();
     }
 
-    auto audioSocket = new QTcpSocket();
-    audioSocket->moveToThread(&m_workerThread);
-    connect(&m_workerThread, &QThread::finished, audioSocket, &QObject::deleteLater);
-
-    connect(this, &AudioOutput::connectTo, audioSocket, [audioSocket](int port) {
-        audioSocket->connectToHost(QHostAddress::LocalHost, port);
-        if (!audioSocket->waitForConnected(500)) {
-            qWarning("AudioOutput::audio socket connect failed");
-            return;
+    // The socket and QAudioSink share the main Qt thread. This prevents
+    // cross-thread QIODevice writes and destruction races on reconnect.
+    auto audioSocket = new QTcpSocket(this);
+    m_audioSocket = audioSocket;
+    connect(audioSocket, &QTcpSocket::disconnected, this, [this, audioSocket]() {
+        if (m_audioSocket == audioSocket) {
+            m_audioSocket = nullptr;
         }
+        audioSocket->deleteLater();
+    });
+
+    connect(audioSocket, &QTcpSocket::connected, this, []() {
         qInfo("AudioOutput::audio socket connect success");
     });
-    connect(audioSocket, &QIODevice::readyRead, audioSocket, [this, audioSocket]() {
-        // QAudioSink and its QIODevice belong to the GUI thread. Writing from
-        // the socket worker thread is unsafe on Qt 6 (and can silently fail).
-        const QByteArray samples = audioSocket->readAll();
+    connect(audioSocket, &QIODevice::readyRead, this, [this, audioSocket]() {
+        QByteArray samples = audioSocket->readAll();
+        if (!m_outputDevice || samples.isEmpty()) {
+            return;
+        }
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+        if (m_convertPcmToFloat) {
+            samples.prepend(m_pcmRemainder);
+            const int alignedLength = samples.size() & ~1;
+            m_pcmRemainder = samples.mid(alignedLength);
+            const char *pcm = samples.constData();
+            QByteArray floats(alignedLength * 2, Qt::Uninitialized);
+            for (int i = 0; i < alignedLength; i += 2) {
+                const quint16 raw = quint16(quint8(pcm[i])) | (quint16(quint8(pcm[i + 1])) << 8);
+                const qint16 value = static_cast<qint16>(raw);
+                const float normalized = float(value) / 32768.0f;
+                memcpy(floats.data() + i * 2, &normalized, sizeof(float));
+            }
+            samples = std::move(floats);
+        }
+#endif
         if (!samples.isEmpty()) {
-            QMetaObject::invokeMethod(this, [this, samples]() {
-                if (m_outputDevice) {
-                    const qint64 written = m_outputDevice->write(samples);
-                    if (written < 0) {
-                        qWarning() << "AudioOutput::PCM write failed:" << m_outputDevice->errorString();
-                    } else if (written < samples.size()) {
-                        qWarning() << "AudioOutput::PCM output buffer full; dropped" << (samples.size() - written) << "bytes";
-                    }
-                }
-            }, Qt::QueuedConnection);
+            const qint64 written = m_outputDevice->write(samples);
+            if (written < 0) {
+                qWarning() << "AudioOutput::PCM write failed:" << m_outputDevice->errorString();
+            } else if (written != samples.size()) {
+                qWarning() << "AudioOutput::PCM output buffer full; dropped" << (samples.size() - written) << "bytes";
+            }
         }
     });
     connect(audioSocket, &QTcpSocket::stateChanged, audioSocket, [](QAbstractSocket::SocketState state) {
@@ -251,16 +284,16 @@ void AudioOutput::startRecvData(int port)
     });
 #endif
 
-    m_workerThread.start();
-    emit connectTo(port);
+    audioSocket->connectToHost(QHostAddress::LocalHost, port);
 }
 
 void AudioOutput::stopRecvData()
 {
-    if (!m_workerThread.isRunning()) {
-        return;
+    if (m_audioSocket) {
+        QTcpSocket *socket = m_audioSocket;
+        m_audioSocket = nullptr;
+        socket->disconnect(this);
+        socket->abort();
+        socket->deleteLater();
     }
-
-    m_workerThread.quit();
-    m_workerThread.wait();
 }
