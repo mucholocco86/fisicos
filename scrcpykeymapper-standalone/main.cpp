@@ -14,6 +14,7 @@
 #include <QUrl>
 #include <QWebEngineDownloadRequest>
 #include <QWebEngineProfile>
+#include <QWebEnginePage>
 #include <QWebEngineView>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -21,7 +22,7 @@
 class LocalAssetServer final : public QObject {
 public:
     explicit LocalAssetServer(QString root, QObject *parent = nullptr)
-        : QObject(parent), m_root(QDir(root).canonicalPath()) {
+        : QObject(parent), m_root(QDir::fromNativeSeparators(QDir(root).canonicalPath())) {
         connect(&m_server, &QTcpServer::newConnection, this, [this]() {
             while (auto *socket = m_server.nextPendingConnection()) {
                 connect(socket, &QTcpSocket::readyRead, socket, [this, socket]() {
@@ -36,8 +37,8 @@ public:
                     if (parts.size() >= 2 && parts[0] == "GET") {
                         const QString relative = QUrl::fromPercentEncoding(parts[1].split('?').first());
                         QString name = relative == "/" ? "/index.html" : relative;
-                        const QString absolute = QFileInfo(m_root + name).canonicalFilePath();
-                        if (!absolute.isEmpty() && absolute.startsWith(m_root + QDir::separator())) {
+                        const QString absolute = QDir::fromNativeSeparators(QFileInfo(m_root + name).canonicalFilePath());
+                        if (!absolute.isEmpty() && absolute.startsWith(m_root + "/")) {
                             QFile file(absolute);
                             if (file.open(QIODevice::ReadOnly)) {
                                 response = file.readAll();
