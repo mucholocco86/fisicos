@@ -16,12 +16,19 @@ echo Waiting for device %1...
 %ADB% %serial% wait-for-device || goto :error
 echo Find device %1
 
-for /f "delims=" %%i in ('%ADB% %serial% shell pm path com.rom1v.sndcpy') do set sndcpy_installed=%%i
-if "%sndcpy_installed%"=="" (
-    echo Install %SNDCPY_APK%... 
-    %ADB% %serial% uninstall com.rom1v.sndcpy || echo uninstall failed
+rem Reinstall our custom icon APK if the device has the original sndcpy
+rem signature. Package ID stays com.rom1v.sndcpy; no unrelated apps touched.
+set "sndcpy_installed="
+for /f "delims=" %%i in ('%ADB% %serial% shell pm path com.rom1v.sndcpy 2^>nul') do set "sndcpy_installed=%%i"
+if not defined sndcpy_installed (
+    echo Install %SNDCPY_APK%...
     %ADB% %serial% install -t -r -g %SNDCPY_APK% || goto :error
     echo Install %SNDCPY_APK% success
+) else (
+    rem A different signing key cannot be updated in place; do not silently
+    rem remove an existing Android app or its data without user confirmation.
+    echo sndcpy already installed. If its old icon remains, uninstall
+    echo com.rom1v.sndcpy manually and start Wells audio again.
 )
 
 echo Request PROJECT_MEDIA permission...
@@ -34,10 +41,11 @@ echo Start %SNDCPY_APK%...
 %ADB% %serial% shell am start com.rom1v.sndcpy/.MainActivity || goto :error
 
 :check_start
+set "sndcpy_started="
 echo Waiting %SNDCPY_APK% start...
 ::timeout /T 1 /NOBREAK > nul
 %ADB% %serial% shell sleep 0.1
-for /f "delims=" %%i in ("%ADB% shell 'ps | grep com.rom1v.sndcpy'") do set sndcpy_started=%%i
+for /f "delims=" %%i in ('%ADB% %serial% shell pidof com.rom1v.sndcpy 2^>nul') do set "sndcpy_started=%%i"
 if "%sndcpy_started%"=="" (
     goto :check_start
 )
