@@ -78,7 +78,7 @@ jobs:
           Copy-Item 'build-keymapper/Release/ScrcpyKeyMapper.exe' package/
           Copy-Item 'scrcpykeymapper-standalone/editor' package/editor -Recurse
           Copy-Item 'scrcpykeymapper-standalone/original/LICENSE' package/LICENSE-original.txt
-          & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --webengine --no-translations package/ScrcpyKeyMapper.exe
+          & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --no-translations package/ScrcpyKeyMapper.exe
           Compress-Archive -Path 'package/*' -DestinationPath ScrcpyKeyMapper-Standalone-Windows.zip -Force
       - uses: actions/upload-artifact@v4
         with:
