@@ -10,7 +10,7 @@ permissions:
   contents: write
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
       - name: Compilar C++/Qt
         shell: pwsh
         run: |
-          cmake -S scrcpykeymapper-standalone -B build-keymapper -G 'Visual Studio 17 2022' -A x64 -DCMAKE_PREFIX_PATH="$env:Qt6_DIR/../.."
+          cmake -S scrcpykeymapper-standalone -B build-keymapper -G 'Visual Studio 17 2022' -A x64 -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR"
           cmake --build build-keymapper --config Release --parallel
       - name: Empacotar aplicativo portátil
         shell: pwsh
