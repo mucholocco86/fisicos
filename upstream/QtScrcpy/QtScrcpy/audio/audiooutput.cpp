@@ -86,6 +86,7 @@ bool AudioOutput::runSndcpyProcess(const QString &serial, int port, bool wait)
 {
     if (QProcess::NotRunning != m_sndcpy.state()) {
         m_sndcpy.kill();
+        m_sndcpy.waitForFinished(3000);
     }
 
 #ifdef Q_OS_WIN32
