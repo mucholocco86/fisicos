@@ -135,6 +135,55 @@ jobs:
           Write-Host 'WellsConect.exe, DLLs do QtScrcpy, FFmpeg, ADB, sndcpy e scrcpy 5.0.1 presentes.'
           if ((Get-Item dist/scrcpy-server).Length -lt 100000) { throw 'scrcpy 5.0.1 não foi empacotado' }
           Get-ChildItem dist -Recurse -File -Include *.pdb,*.lib,*.exp | Remove-Item -Force
+      - name: Personalizar ícone do sndcpy.apk sem alterar seu código Java
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Apktool recompila recursos; o pacote precisa de nova assinatura Android.
+          $apk = 'dist/sndcpy.apk'
+          if (!(Test-Path $apk)) { throw 'sndcpy.apk original ausente' }
+          Invoke-WebRequest 'https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar' -OutFile "$env:RUNNER_TEMP/apktool.jar"
+          java -jar "$env:RUNNER_TEMP/apktool.jar" d -f $apk -o "$env:RUNNER_TEMP/sndcpy-decoded"
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao decodificar sndcpy.apk' }
+          @'
+          from pathlib import Path
+          from PIL import Image
+          import re
+          root = Path(__import__('os').environ['RUNNER_TEMP']) / 'sndcpy-decoded'
+          manifest = (root / 'AndroidManifest.xml').read_text(encoding='utf-8')
+          m = re.search(r'android:icon="@(mipmap|drawable)/([a-zA-Z0-9_]+)"', manifest)
+          if not m:
+              raise RuntimeError('Ícone Android não identificado; preservando APK em vez de alterar recurso errado')
+          kind, name = m.groups()
+          original = Image.open('upstream/QtScrcpy/QtScrcpy/res/wells_connect_icon.png').convert('RGBA')
+          matches = list((root / 'res').glob(f'{kind}*/{name}.png')) + list((root / 'res').glob(f'{kind}*/{name}.webp'))
+          if not matches:
+              raise RuntimeError(f'Ícone {kind}/{name} não tem recursos de imagem diretos; requer tratamento específico')
+          for path in matches:
+              with Image.open(path) as target:
+                  size = target.size
+              original.resize(size, Image.Resampling.LANCZOS).save(path, format='PNG')
+              if path.suffix == '.webp':
+                  # Preserve original resource format and extension.
+                  original.resize(size, Image.Resampling.LANCZOS).save(path, format='WEBP', lossless=True)
+          print('Recursos do ícone substituídos:', len(matches))
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao substituir recursos do ícone' }
+          java -jar "$env:RUNNER_TEMP/apktool.jar" b "$env:RUNNER_TEMP/sndcpy-decoded" -o "$env:RUNNER_TEMP/sndcpy-unsigned.apk"
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao reconstruir sndcpy.apk' }
+          $buildTools = Get-ChildItem "$env:ANDROID_HOME/build-tools" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          if (!$buildTools) { throw 'Android build-tools não encontrados' }
+          $zipalign = Join-Path $buildTools.FullName 'zipalign.exe'
+          $apksigner = Join-Path $buildTools.FullName 'apksigner.bat'
+          & $zipalign -f -p 4 "$env:RUNNER_TEMP/sndcpy-unsigned.apk" "$env:RUNNER_TEMP/sndcpy-aligned.apk"
+          if ($LASTEXITCODE -ne 0) { throw 'zipalign falhou' }
+          keytool -genkeypair -keystore "$env:RUNNER_TEMP/wells-sndcpy.keystore" -storepass changeit -keypass changeit -alias wells-sndcpy -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Wells Conect,O=Wells,C=BR'
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar assinatura' }
+          & $apksigner sign --ks "$env:RUNNER_TEMP/wells-sndcpy.keystore" --ks-pass pass:changeit --key-pass pass:changeit --out $apk "$env:RUNNER_TEMP/sndcpy-aligned.apk"
+          if ($LASTEXITCODE -ne 0) { throw 'Assinatura do APK falhou' }
+          & $apksigner verify --verbose $apk
+          if ($LASTEXITCODE -ne 0) { throw 'APK personalizado não passou na verificação de assinatura' }
+          Write-Host 'AVISO: APK reassinado. Se o original estiver instalado, desinstale com adb uninstall com.rom1v.sndcpy antes de instalar a nova versão.'
       - uses: actions/upload-artifact@v4
         with:
           name: WELLS-CONECT-CORRECOES-AUDIO-WINDOWS
