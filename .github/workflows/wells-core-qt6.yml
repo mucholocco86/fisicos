@@ -1,7 +1,7 @@
 name: WELLS CONECT - Nucleo real QtScrcpy Qt6
 on:
   push:
-    branches: [release/wells-conect-icone-definitivo]
+    branches: [release/wells-conect-icone-definitivo, fix/wells-conect-audio-config-apk-icon]
     paths:
       - '.github/workflows/wells-core-qt6.yml'
       - 'upstream/QtScrcpy/**'
@@ -122,6 +122,13 @@ jobs:
           foreach ($dependency in @('Qt6Core.dll','Qt6Gui.dll','Qt6Widgets.dll','Qt6OpenGL.dll','Qt6OpenGLWidgets.dll','Qt6Multimedia.dll','adb.exe','scrcpy-server','sndcpy.apk')) {
             if (!(Test-Path ("dist/" + $dependency))) { throw "Dependência obrigatória ausente: $dependency" }
           }
+          # Qt Multimedia requires its runtime backend in addition to Qt6Multimedia.dll.
+          $mediaBackends = Get-ChildItem dist -Recurse -Filter '*mediaplugin*.dll' -File -ErrorAction SilentlyContinue
+          $ffmpegBackend = Get-ChildItem dist -Recurse -Filter 'ffmpegmediaplugin.dll' -File -ErrorAction SilentlyContinue
+          $windowsBackend = Get-ChildItem dist -Recurse -Filter 'windowsmediaplugin.dll' -File -ErrorAction SilentlyContinue
+          if (!$mediaBackends -and !$ffmpegBackend -and !$windowsBackend) {
+            Write-Warning 'No Qt Multimedia backend plugin was found; sndcpy playback may be unavailable.'
+          }
           if (!(Get-ChildItem dist -Filter 'avcodec-*.dll' -File)) { throw 'FFmpeg avcodec ausente' }
           if (!(Get-ChildItem dist -Filter 'avformat-*.dll' -File)) { throw 'FFmpeg avformat ausente' }
           if (Test-Path 'dist/scrcpy.exe') { throw 'Regressão: pacote contém motor externo em lugar de núcleo integrado' }
@@ -130,6 +137,6 @@ jobs:
           Get-ChildItem dist -Recurse -File -Include *.pdb,*.lib,*.exp | Remove-Item -Force
       - uses: actions/upload-artifact@v4
         with:
-          name: WELLS-CONECT-ICONE-DEFINITIVO-WINDOWS
+          name: WELLS-CONECT-CORRECOES-AUDIO-WINDOWS
           path: dist/
           if-no-files-found: error
