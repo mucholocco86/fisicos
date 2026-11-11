@@ -225,9 +225,7 @@ void AudioOutput::stopAudioOutput()
 
 void AudioOutput::startRecvData(int port)
 {
-    if (m_workerThread.isRunning()) {
-        stopRecvData();
-    }
+    stopRecvData();
 
     // The socket and QAudioSink share the main Qt thread. This prevents
     // cross-thread QIODevice writes and destruction races on reconnect.
@@ -257,7 +255,7 @@ void AudioOutput::startRecvData(int port)
             const int alignedLength = samples.size() & ~1;
             m_pcmRemainder = samples.mid(alignedLength);
             const char *pcm = samples.constData();
-            QByteArray floats(alignedLength * 2, Qt::Uninitialized);
+            QByteArray floats(alignedLength * 2, '\0');
             for (int i = 0; i < alignedLength; i += 2) {
                 const quint16 raw = quint16(quint8(pcm[i])) | (quint16(quint8(pcm[i + 1])) << 8);
                 const qint16 value = static_cast<qint16>(raw);
