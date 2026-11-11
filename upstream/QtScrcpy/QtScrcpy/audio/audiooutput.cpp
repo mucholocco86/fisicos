@@ -186,7 +186,14 @@ void AudioOutput::startAudioOutput()
     }
     m_pcmRemainder.clear();
     m_audioSink = new QAudioSink(defaultDevice, format, this);
+    // Bound queued playback to ~100 ms instead of relying on the Qt6 backend
+    // default. Calculate from the negotiated format (Int16 or Float), so the
+    // FxSound-compatible Float path gets the correct byte capacity.
+    const qint64 targetBufferBytes = format.bytesForDuration(100000);
+    m_audioSink->setBufferSize(static_cast<qsizetype>(targetBufferBytes));
+    qInfo() << "AudioOutput::requested 100 ms audio buffer:" << targetBufferBytes << "bytes";
     m_outputDevice = m_audioSink->start();
+    qInfo() << "AudioOutput::actual Qt6 audio buffer:" << m_audioSink->bufferSize() << "bytes";
     if (!m_outputDevice) {
         qWarning() << "AudioOutput::audio output device not available, cannot play audio.";
         delete m_audioSink;
