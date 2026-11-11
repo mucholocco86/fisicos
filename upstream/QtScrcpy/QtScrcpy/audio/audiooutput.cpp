@@ -6,6 +6,8 @@
 #include <QByteArray>
 #include <QTimer>
 #include <QtEndian>
+#include <cstring>
+#include <utility>
 #include <QElapsedTimer>
 #include <QHostAddress>
 #include <QTcpSocket>
