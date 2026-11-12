@@ -16,7 +16,6 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
-import android.widget.Switch;
 import android.widget.TextView;
 
 public final class MainActivity extends Activity {
@@ -24,10 +23,8 @@ public final class MainActivity extends Activity {
     private static final int MUTED = Color.rgb(175, 175, 180);
     private TextView explanation;
     private RadioGroup qualities;
-    private Switch enabled;
     private static final int REQUEST_CAPTURE = 4001;
     private static final int REQUEST_AUDIO_PERMISSION = 4002;
-    private boolean changingSwitch;
     private boolean autoStart;
 
     private int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
@@ -56,18 +53,13 @@ public final class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, results);
         if (requestCode == REQUEST_AUDIO_PERMISSION) {
             if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) requestCapture();
-            else { resetSwitch(); if (autoStart) finish(); }
+            else if (autoStart) finish();
         }
-    }
-    private void resetSwitch() {
-        changingSwitch = true;
-        enabled.setChecked(false);
-        changingSwitch = false;
     }
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQUEST_CAPTURE) return;
-        if (resultCode != RESULT_OK || data == null) { resetSwitch(); if (autoStart) finish(); return; }
+        if (resultCode != RESULT_OK || data == null) { if (autoStart) finish(); return; }
         Intent start = new Intent(this, AudioCaptureService.class);
         start.setAction(AudioCaptureService.ACTION_START);
         start.putExtra(AudioCaptureService.EXTRA_RESULT_CODE, resultCode);
@@ -92,12 +84,6 @@ public final class MainActivity extends Activity {
         line.setBackgroundColor(Color.rgb(50,50,54));
         add(root, line, 28);
         line.getLayoutParams().height = dp(1);
-        enabled = new Switch(this);
-        enabled.setText("Transmitir áudio");
-        enabled.setTextColor(Color.WHITE);
-        enabled.setTextSize(16);
-        enabled.setChecked(false);
-        add(root, enabled, 24);
         add(root, text("Qualidade do áudio", 17, true, Color.WHITE), 26);
         qualities = new RadioGroup(this);
         qualities.setOrientation(LinearLayout.VERTICAL);
@@ -121,19 +107,11 @@ public final class MainActivity extends Activity {
         explanation=text("",14,false,MUTED);
         add(root, text("ⓘ  Configuração selecionada", 15, true, Color.WHITE), 26);
         add(root, explanation, 8);
-        add(root, text("Transmissão experimental PCM 48 kHz. Os perfis 32/96/128 kbps ainda não comprimem o áudio. O Android solicitará permissão de captura.", 12, false, MUTED), 28);
+        add(root, text("O áudio é iniciado pelo botão Iniciar áudio do Wells Conect no computador. Protótipo PCM 48 kHz: a compressão de 32/96/128 kbps ainda não está implementada.", 12, false, MUTED), 28);
         qualities.setOnCheckedChangeListener((group,id)->{
             int rate=id-1000;
             getPreferences(0).edit().putInt("bitrate",rate).apply();
             explanation.setText(rate==128?"Prioriza a fidelidade do som.":rate==96?"Equilibra qualidade e economia de dados.":"Prioriza menor consumo de dados, com perda de qualidade.");
-        });
-        enabled.setOnCheckedChangeListener((button,on)->{
-            if (changingSwitch) return;
-            if (on) requestCapture(); else {
-                Intent stop = new Intent(this, AudioCaptureService.class);
-                stop.setAction(AudioCaptureService.ACTION_STOP);
-                startService(stop);
-            }
         });
         explanation.setText(saved==128?"Prioriza a fidelidade do som.":saved==96?"Equilibra qualidade e economia de dados.":"Prioriza menor consumo de dados, com perda de qualidade.");
         setContentView(root);
