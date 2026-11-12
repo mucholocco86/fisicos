@@ -9,4 +9,11 @@ android {
         versionCode 1
         versionName '0.1.0-prototype'
     }
+    sourceSets { main { res.srcDir "$buildDir/generated/wellsIconRes" } }
 }
+tasks.register('copyWellsIcon', Copy) {
+    from '../../upstream/QtScrcpy/QtScrcpy/res/wells_connect_icon.png'
+    into "$buildDir/generated/wellsIconRes/drawable"
+    rename { 'wells_connect_icon.png' }
+}
+tasks.named('preBuild').configure { dependsOn tasks.named('copyWellsIcon') }
