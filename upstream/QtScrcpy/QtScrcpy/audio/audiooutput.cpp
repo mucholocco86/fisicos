@@ -185,6 +185,9 @@ void AudioOutput::startAudioOutput()
         qInfo() << "AudioOutput::converting sndcpy Int16 PCM to 48 kHz stereo Float for output device.";
     }
     m_pcmRemainder.clear();
+    m_pendingAudio.clear();
+    m_audioFrameBytes = format.bytesPerFrame();
+    m_maxPendingAudioBytes = format.bytesForDuration(100000);
     m_audioSink = new QAudioSink(defaultDevice, format, this);
     // Bound queued playback to ~100 ms instead of relying on the Qt6 backend
     // default. Calculate from the negotiated format (Int16 or Float), so the
@@ -200,6 +203,10 @@ void AudioOutput::startAudioOutput()
         m_audioSink = nullptr;
         return;
     }
+    m_audioDrainTimer = new QTimer(this);
+    m_audioDrainTimer->setInterval(10);
+    connect(m_audioDrainTimer, &QTimer::timeout, this, &AudioOutput::drainAudio);
+    m_audioDrainTimer->start();
     connect(m_audioSink, &QAudioSink::stateChanged, this, [this](QAudio::State state) {
         if (m_audioSink && state == QAudio::StoppedState && m_audioSink->error() != QAudio::NoError) {
             qWarning() << "AudioOutput::sink error:" << m_audioSink->error();
@@ -217,6 +224,13 @@ void AudioOutput::stopAudioOutput()
         m_audioOutput = nullptr;
     }
 #else
+    if (m_audioDrainTimer) {
+        m_audioDrainTimer->stop();
+        delete m_audioDrainTimer;
+        m_audioDrainTimer = nullptr;
+    }
+    m_pendingAudio.clear();
+    m_maxPendingAudioBytes = 0;
     if (m_audioSink) {
         m_audioSink->stop();
         delete m_audioSink;
@@ -257,13 +271,16 @@ void AudioOutput::startRecvData(int port)
             return;
         }
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+        // sndcpy sends 48 kHz, stereo Int16 PCM (4 bytes per sample frame).
+        // TCP may split a frame across readyRead notifications.
+        samples.prepend(m_pcmRemainder);
+        const qsizetype alignedLength = samples.size() - (samples.size() % 4);
+        m_pcmRemainder = samples.mid(alignedLength);
+        samples.truncate(alignedLength);
         if (m_convertPcmToFloat) {
-            samples.prepend(m_pcmRemainder);
-            const int alignedLength = samples.size() & ~1;
-            m_pcmRemainder = samples.mid(alignedLength);
             const char *pcm = samples.constData();
             QByteArray floats(alignedLength * 2, '\0');
-            for (int i = 0; i < alignedLength; i += 2) {
+            for (qsizetype i = 0; i < alignedLength; i += 2) {
                 const quint16 raw = quint16(quint8(pcm[i])) | (quint16(quint8(pcm[i + 1])) << 8);
                 const qint16 value = static_cast<qint16>(raw);
                 const float normalized = float(value) / 32768.0f;
@@ -271,7 +288,8 @@ void AudioOutput::startRecvData(int port)
             }
             samples = std::move(floats);
         }
-#endif
+        enqueueAudio(std::move(samples));
+#else
         if (!samples.isEmpty()) {
             const qint64 written = m_outputDevice->write(samples);
             if (written < 0) {
@@ -280,6 +298,7 @@ void AudioOutput::startRecvData(int port)
                 qWarning() << "AudioOutput::PCM output buffer full; dropped" << (samples.size() - written) << "bytes";
             }
         }
+#endif
     });
     connect(audioSocket, &QTcpSocket::stateChanged, audioSocket, [](QAbstractSocket::SocketState state) {
         qInfo() << "AudioOutput::audio socket state changed:" << state;
@@ -306,3 +325,44 @@ void AudioOutput::stopRecvData()
         socket->deleteLater();
     }
 }
+
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+void AudioOutput::enqueueAudio(QByteArray samples)
+{
+    if (!m_audioSink || !m_outputDevice || samples.isEmpty()) {
+        return;
+    }
+    m_pendingAudio.append(samples);
+    // Bound latency: never keep more than 100 ms of PCM waiting in our queue.
+    if (m_maxPendingAudioBytes > 0 && m_pendingAudio.size() > m_maxPendingAudioBytes) {
+        const qsizetype excess = m_pendingAudio.size() - m_maxPendingAudioBytes;
+        const qsizetype drop = ((excess + m_audioFrameBytes - 1) / m_audioFrameBytes) * m_audioFrameBytes;
+        m_pendingAudio.remove(0, drop);
+        qWarning() << "AudioOutput::pending PCM latency limit; dropped" << drop << "oldest bytes";
+    }
+    drainAudio();
+}
+
+void AudioOutput::drainAudio()
+{
+    if (!m_audioSink || !m_outputDevice || m_pendingAudio.isEmpty()) {
+        return;
+    }
+    const qint64 freeBytes = m_audioSink->bytesFree();
+    const qsizetype available = qMin(qsizetype(freeBytes), m_pendingAudio.size());
+    const qsizetype aligned = available - (available % m_audioFrameBytes);
+    if (aligned <= 0) {
+        return;
+    }
+    const qint64 written = m_outputDevice->write(m_pendingAudio.constData(), aligned);
+    if (written < 0) {
+        qWarning() << "AudioOutput::PCM write failed:" << m_outputDevice->errorString();
+        return;
+    }
+    if (written > 0) {
+        // QAudioSink normally accepts complete frames. Keep the remainder if
+        // it performs a partial write rather than silently losing the samples.
+        m_pendingAudio.remove(0, written);
+    }
+}
+#endif
