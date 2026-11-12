@@ -2,7 +2,7 @@ name: Wells Audio Android prototype APK
 on:
   push:
     branches:
-      - feat/wells-audio-android-prototype
+      - feat/wells-audio-sndcpy-base
   workflow_dispatch:
 jobs:
   build:
