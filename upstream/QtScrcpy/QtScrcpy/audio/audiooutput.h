@@ -11,6 +11,7 @@ class QAudioSink;
 class QAudioOutput;
 class QIODevice;
 class QTcpSocket;
+class QTimer;
 class AudioOutput : public QObject
 {
     Q_OBJECT
@@ -28,6 +29,10 @@ private:
     void stopAudioOutput();
     void startRecvData(int port);
     void stopRecvData();
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    void enqueueAudio(QByteArray samples);
+    void drainAudio();
+#endif
 
 signals:
     void connectTo(int port);
@@ -43,6 +48,10 @@ private:
     QAudioSink *m_audioSink = nullptr;
     bool m_convertPcmToFloat = false;
     QByteArray m_pcmRemainder;
+    QByteArray m_pendingAudio;
+    QTimer *m_audioDrainTimer = nullptr;
+    qsizetype m_audioFrameBytes = 4;
+    qsizetype m_maxPendingAudioBytes = 0;
 #endif
 };
 
