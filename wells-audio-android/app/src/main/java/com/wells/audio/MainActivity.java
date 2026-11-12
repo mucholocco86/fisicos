@@ -28,6 +28,7 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_CAPTURE = 4001;
     private static final int REQUEST_AUDIO_PERMISSION = 4002;
     private boolean changingSwitch;
+    private boolean autoStart;
 
     private int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
     private TextView text(String value, int size, boolean bold, int color) {
@@ -55,7 +56,7 @@ public final class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, results);
         if (requestCode == REQUEST_AUDIO_PERMISSION) {
             if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) requestCapture();
-            else resetSwitch();
+            else { resetSwitch(); if (autoStart) finish(); }
         }
     }
     private void resetSwitch() {
@@ -66,15 +67,19 @@ public final class MainActivity extends Activity {
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQUEST_CAPTURE) return;
-        if (resultCode != RESULT_OK || data == null) { resetSwitch(); return; }
+        if (resultCode != RESULT_OK || data == null) { resetSwitch(); if (autoStart) finish(); return; }
         Intent start = new Intent(this, AudioCaptureService.class);
         start.setAction(AudioCaptureService.ACTION_START);
         start.putExtra(AudioCaptureService.EXTRA_RESULT_CODE, resultCode);
         start.putExtra(AudioCaptureService.EXTRA_RESULT_DATA, data);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(start); else startService(start);
+        // The capture lives in AudioCaptureService, not in this Activity.
+        // Closing this screen does not stop the foreground service.
+        finish();
     }
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        autoStart = getIntent() != null && getIntent().getBooleanExtra("auto_start", false);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         LinearLayout root = new LinearLayout(this);
@@ -132,5 +137,8 @@ public final class MainActivity extends Activity {
         });
         explanation.setText(saved==128?"Prioriza a fidelidade do som.":saved==96?"Equilibra qualidade e economia de dados.":"Prioriza menor consumo de dados, com perda de qualidade.");
         setContentView(root);
+        // ADB launch starts capture without requiring the user to touch the switch.
+        // Android still shows its mandatory MediaProjection consent dialog.
+        if (autoStart) requestCapture();
     }
 }
