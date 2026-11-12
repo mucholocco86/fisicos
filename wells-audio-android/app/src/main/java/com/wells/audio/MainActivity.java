@@ -29,9 +29,8 @@ public final class MainActivity extends Activity {
     }
 
     private void requestNotificationPermissionThenCapture() {
-        // The app targets API 31 to preserve the proven sndcpy capture behavior.
-        // On Android 13+, creating the channel while this activity is foreground
-        // allows the OS to display its notification consent dialog.
+        // Target API 33: request POST_NOTIFICATIONS explicitly while this
+        // activity is foreground, before requesting MediaProjection consent.
         NotificationManager notifications = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         notifications.createNotificationChannel(new NotificationChannel(
             "wells_audio", "Wells Audio", NotificationManager.IMPORTANCE_LOW));
