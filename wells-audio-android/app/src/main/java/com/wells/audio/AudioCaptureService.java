@@ -1,6 +1,7 @@
 package com.wells.audio;
 
 import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
@@ -47,10 +48,20 @@ public final class AudioCaptureService extends Service {
         if (!ACTION_START.equals(intent.getAction()) || running) return START_NOT_STICKY;
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel("wells_audio", "Wells Audio", NotificationManager.IMPORTANCE_LOW));
+        Intent settingsIntent = new Intent(this, MainActivity.class);
+        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent settings = PendingIntent.getActivity(this, 0, settingsIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Intent stopIntent = new Intent(this, AudioCaptureService.class);
+        stopIntent.setAction(ACTION_STOP);
+        PendingIntent stop = PendingIntent.getService(this, 1, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification notification = new Notification.Builder(this, "wells_audio")
             .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
             .setContentTitle("Wells Audio")
             .setContentText("Capturando áudio com autorização do Android")
+            .setContentIntent(settings)
+            .addAction(android.R.drawable.ic_media_pause, "Parar áudio", stop)
             .setOngoing(true).build();
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(103, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
