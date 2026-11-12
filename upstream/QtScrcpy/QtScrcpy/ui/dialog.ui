@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string notr="true">QtScrcpy</string>
+   <string notr="true">WELLS Conect</string>
   </property>
   <layout class="QHBoxLayout" name="horizontalLayout_11">
    <property name="leftMargin">
@@ -1209,7 +1209,7 @@
                </sizepolicy>
               </property>
               <property name="text">
-               <string>install sndcpy</string>
+               <string>Instalar Wells Audio</string>
               </property>
              </widget>
             </item>
