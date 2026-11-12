@@ -1,6 +1,12 @@
 package com.wells.audio;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.media.projection.MediaProjectionManager;
+import android.Manifest;
+import android.os.Build;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -19,6 +25,9 @@ public final class MainActivity extends Activity {
     private TextView explanation;
     private RadioGroup qualities;
     private Switch enabled;
+    private static final int REQUEST_CAPTURE = 4001;
+    private static final int REQUEST_AUDIO_PERMISSION = 4002;
+    private boolean changingSwitch;
 
     private int dp(float v) { return Math.round(v * getResources().getDisplayMetrics().density); }
     private TextView text(String value, int size, boolean bold, int color) {
@@ -33,6 +42,36 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
         p.topMargin = dp(top);
         parent.addView(child, p);
+    }
+    private void requestCapture() {
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_AUDIO_PERMISSION);
+            return;
+        }
+        MediaProjectionManager manager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_CAPTURE);
+    }
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQUEST_AUDIO_PERMISSION) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) requestCapture();
+            else resetSwitch();
+        }
+    }
+    private void resetSwitch() {
+        changingSwitch = true;
+        enabled.setChecked(false);
+        changingSwitch = false;
+    }
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_CAPTURE) return;
+        if (resultCode != RESULT_OK || data == null) { resetSwitch(); return; }
+        Intent start = new Intent(this, AudioCaptureService.class);
+        start.setAction(AudioCaptureService.ACTION_START);
+        start.putExtra(AudioCaptureService.EXTRA_RESULT_CODE, resultCode);
+        start.putExtra(AudioCaptureService.EXTRA_RESULT_DATA, data);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(start); else startService(start);
     }
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -52,7 +91,7 @@ public final class MainActivity extends Activity {
         enabled.setText("Transmitir áudio");
         enabled.setTextColor(Color.WHITE);
         enabled.setTextSize(16);
-        enabled.setChecked(getPreferences(0).getBoolean("enabled", false));
+        enabled.setChecked(false);
         add(root, enabled, 24);
         add(root, text("Qualidade do áudio", 17, true, Color.WHITE), 26);
         qualities = new RadioGroup(this);
@@ -77,13 +116,20 @@ public final class MainActivity extends Activity {
         explanation=text("",14,false,MUTED);
         add(root, text("ⓘ  Configuração selecionada", 15, true, Color.WHITE), 26);
         add(root, explanation, 8);
-        add(root, text("Protótipo da interface. A captura e transmissão ainda não estão implementadas.", 12, false, MUTED), 28);
+        add(root, text("Transmissão experimental PCM 48 kHz. Os perfis 32/96/128 kbps ainda não comprimem o áudio. O Android solicitará permissão de captura.", 12, false, MUTED), 28);
         qualities.setOnCheckedChangeListener((group,id)->{
             int rate=id-1000;
             getPreferences(0).edit().putInt("bitrate",rate).apply();
             explanation.setText(rate==128?"Prioriza a fidelidade do som.":rate==96?"Equilibra qualidade e economia de dados.":"Prioriza menor consumo de dados, com perda de qualidade.");
         });
-        enabled.setOnCheckedChangeListener((button,on)->getPreferences(0).edit().putBoolean("enabled",on).apply());
+        enabled.setOnCheckedChangeListener((button,on)->{
+            if (changingSwitch) return;
+            if (on) requestCapture(); else {
+                Intent stop = new Intent(this, AudioCaptureService.class);
+                stop.setAction(AudioCaptureService.ACTION_STOP);
+                startService(stop);
+            }
+        });
         explanation.setText(saved==128?"Prioriza a fidelidade do som.":saved==96?"Equilibra qualidade e economia de dados.":"Prioriza menor consumo de dados, com perda de qualidade.");
         setContentView(root);
     }
