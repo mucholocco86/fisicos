@@ -23,7 +23,8 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Install Android SDK 35
-        run: "$ANDROID_SDK_ROOT/cmdline-tools/16.0/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+        run: |
+          "$ANDROID_SDK_ROOT/cmdline-tools/16.0/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
       - name: Build debug APK
         working-directory: wells-audio-android
         run: gradle :app:assembleDebug --no-daemon
