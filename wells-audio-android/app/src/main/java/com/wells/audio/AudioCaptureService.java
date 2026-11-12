@@ -28,6 +28,8 @@ import java.io.OutputStream;
 public final class AudioCaptureService extends Service {
     public static final String ACTION_STOP = "com.wells.audio.STOP";
     public static final String ACTION_START = "com.wells.audio.START";
+    public static final String ACTION_QUALITY = "com.wells.audio.QUALITY";
+    public static final String EXTRA_BITRATE = "bitrate";
     public static final String EXTRA_RESULT_CODE = "resultCode";
     public static final String EXTRA_RESULT_DATA = "resultData";
     private static final String TAG = "WellsAudio";
@@ -45,24 +47,18 @@ public final class AudioCaptureService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        if (ACTION_QUALITY.equals(intent.getAction())) {
+            int selected = intent.getIntExtra(EXTRA_BITRATE, 96);
+            if (selected == 32 || selected == 96 || selected == 128) {
+                getSharedPreferences("quality", MODE_PRIVATE).edit().putInt("bitrate", selected).apply();
+                if (running) getSystemService(NotificationManager.class).notify(103, buildNotification());
+            }
+            return START_NOT_STICKY;
+        }
         if (!ACTION_START.equals(intent.getAction()) || running) return START_NOT_STICKY;
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel("wells_audio", "Wells Audio", NotificationManager.IMPORTANCE_LOW));
-        Intent settingsIntent = new Intent(this, MainActivity.class);
-        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent settings = PendingIntent.getActivity(this, 0, settingsIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        Intent stopIntent = new Intent(this, AudioCaptureService.class);
-        stopIntent.setAction(ACTION_STOP);
-        PendingIntent stop = PendingIntent.getService(this, 1, stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        Notification notification = new Notification.Builder(this, "wells_audio")
-            .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
-            .setContentTitle("Wells Audio")
-            .setContentText("Capturando áudio com autorização do Android")
-            .setContentIntent(settings)
-            .addAction(android.R.drawable.ic_media_pause, "Parar áudio", stop)
-            .setOngoing(true).build();
+        Notification notification = buildNotification();
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(103, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
         } else {
@@ -89,6 +85,32 @@ public final class AudioCaptureService extends Service {
         worker = new Thread(this::stream, "WellsAudioPCM");
         worker.start();
         return START_NOT_STICKY;
+    }
+
+    private Notification buildNotification() {
+        int selected = getSharedPreferences("quality", MODE_PRIVATE).getInt("bitrate", 96);
+        Intent stopIntent = new Intent(this, AudioCaptureService.class);
+        stopIntent.setAction(ACTION_STOP);
+        PendingIntent stop = PendingIntent.getService(this, 1, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder builder = new Notification.Builder(this, "wells_audio")
+            .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
+            .setContentTitle("Wells Audio — transmitindo")
+            .setContentText("PCM sem compressão • preferência: " + selected + " kbps")
+            .setOngoing(true);
+        // Quality buttons save the future codec preference; PCM transport is
+        // currently fixed at 1536 kbps. Do not claim these buttons compress.
+        for (int rate : new int[]{128, 96, 32}) {
+            Intent choose = new Intent(this, AudioCaptureService.class);
+            choose.setAction(ACTION_QUALITY);
+            choose.putExtra(EXTRA_BITRATE, rate);
+            PendingIntent action = PendingIntent.getService(this, rate, choose,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            builder.addAction(android.R.drawable.ic_menu_manage,
+                (selected == rate ? "✓ " : "") + rate + " kbps", action);
+        }
+        builder.addAction(android.R.drawable.ic_media_pause, "Parar", stop);
+        return builder.build();
     }
 
     private void stream() {
