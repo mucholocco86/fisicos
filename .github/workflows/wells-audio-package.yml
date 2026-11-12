@@ -1,7 +1,7 @@
 name: WELLS Audio experimental Windows package
 on:
   push:
-    branches: [feat/wells-audio-android-prototype]
+    branches: [feat/wells-audio-sndcpy-base]
   workflow_dispatch:
 jobs:
   android:
