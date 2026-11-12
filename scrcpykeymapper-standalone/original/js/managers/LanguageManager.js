@@ -1,6 +1,6 @@
 export class LanguageManager {
     constructor() {
-        this.currentLanguage = localStorage.getItem('language') || 'en';
+        this.currentLanguage = localStorage.getItem('language') || 'pt-BR';
         this.translations = {};
         this.rtlLanguages = ['ar'];
         this.init();
@@ -9,7 +9,7 @@ export class LanguageManager {
     async init() {
         try {
             // Load all translations
-            const languages = ['en', 'ar', 'zh'];
+            const languages = ['en', 'ar', 'zh', 'pt-BR'];
             for (const lang of languages) {
                 const module = await import(`../i18n/${lang}.js`);
                 this.translations[lang] = module.default;
@@ -62,7 +62,8 @@ export class LanguageManager {
         const languages = [
             { code: 'en', name: 'English', flag: 'us' },
             { code: 'ar', name: 'العربية', flag: 'sa' },
-            { code: 'zh', name: '中文', flag: 'cn' }
+            { code: 'zh', name: '中文', flag: 'cn' },
+            { code: 'pt-BR', name: 'Português (Brasil)', flag: 'br' }
         ];
 
         languages.forEach(lang => {
