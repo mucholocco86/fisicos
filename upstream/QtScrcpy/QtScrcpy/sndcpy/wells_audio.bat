@@ -16,9 +16,9 @@ rem ADB install -r works for both first installation and same-key updates.
 %ADB% %SERIAL% install -r wells-audio.apk || exit /b 4
 %ADB% %SERIAL% forward tcp:%PORT% localabstract:wells_audio || exit /b 5
 echo.
-echo WELLS AUDIO: On the phone, open Wells Audio, enable Transmitir audio,
-echo and approve Android's screen/audio capture prompt.
+echo WELLS AUDIO: Approve Android's capture prompt on the phone.
+echo The Wells Audio settings screen will close after authorization.
 echo Waiting for the Android audio service to connect to the Windows receiver.
 echo.
-%ADB% %SERIAL% shell am start -n com.wells.audio/.MainActivity || exit /b 6
+%ADB% %SERIAL% shell am start -n com.wells.audio/.MainActivity --ez auto_start true || exit /b 6
 exit /b 0
