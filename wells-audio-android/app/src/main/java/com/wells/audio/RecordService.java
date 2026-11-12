@@ -8,6 +8,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.widget.RemoteViews;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
@@ -117,21 +118,30 @@ public class RecordService extends Service {
                 " • PCM original • preferência " + selected + " kbps")
             .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
             .setOngoing(true);
-        // Until codec integration, these controls store preferences only.
+        // Android's standard notification shows at most three action buttons.
+        // Use an expanded custom view so Stop remains visible alongside all rates.
+        RemoteViews expanded = new RemoteViews(getPackageName(), R.layout.wells_audio_notification);
+        expanded.setTextViewText(R.id.audio_status,
+            (established ? "Transmitindo" : "Aguardando conexão") + " • PCM original • preferência " + selected + " kbps");
         for (int rate : new int[]{128, 96, 32}) {
             Intent choose = new Intent(this, RecordService.class);
             choose.setAction(ACTION_RATE);
             choose.putExtra(EXTRA_RATE, rate);
             PendingIntent pending = PendingIntent.getService(this, rate, choose,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            builder.addAction(android.R.drawable.ic_menu_manage,
-                (rate == selected ? "✓ " : "") + rate + " kbps", pending);
+            int viewId = rate == 128 ? R.id.rate_128 : rate == 96 ? R.id.rate_96 : R.id.rate_32;
+            expanded.setTextViewText(viewId, (rate == selected ? "✓ " : "") + rate + " kbps");
+            expanded.setOnClickPendingIntent(viewId, pending);
         }
         Intent stop = new Intent(this, RecordService.class);
         stop.setAction(ACTION_STOP);
         PendingIntent stopAction = PendingIntent.getService(this, 1, stop,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        builder.addAction(android.R.drawable.ic_media_pause, "Parar", stopAction);
+        expanded.setOnClickPendingIntent(R.id.audio_stop, stopAction);
+        builder.setStyle(new Notification.DecoratedCustomViewStyle());
+        builder.setCustomBigContentView(expanded);
+        // Tapping the collapsed notification also provides a way to stop.
+        builder.setContentIntent(stopAction);
         return builder.build();
     }
 
