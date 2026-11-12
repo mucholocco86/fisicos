@@ -10,7 +10,9 @@ if not exist "wells-audio.apk" (
   exit /b 2
 )
 %ADB% %SERIAL% wait-for-device || exit /b 3
-%ADB% %SERIAL% shell pm path com.wells.audio | findstr /C:"package:" >nul
+echo Checking Wells Audio installation...
+rem Use adb itself to check the package; avoid findstr (missing from some PATH environments).
+%ADB% %SERIAL% shell pm path com.wells.audio
 if errorlevel 1 (
   echo Installing Wells Audio...
   %ADB% %SERIAL% install -r wells-audio.apk || exit /b 4
