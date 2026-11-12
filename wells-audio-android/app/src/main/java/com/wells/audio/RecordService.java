@@ -31,13 +31,10 @@ import java.io.IOException;
 public class RecordService extends Service {
 
     private static final String TAG = "WellsAudio";
-    private static final String CHANNEL_ID = "wells_audio";
-    private static final int NOTIFICATION_ID = 1;
-
     private static final String ACTION_RECORD = "com.wells.audio.RECORD";
-    private static final String ACTION_STOP = "com.wells.audio.STOP";
-    private static final String ACTION_RATE = "com.wells.audio.RATE";
-    private static final String EXTRA_RATE = "rate";
+    static final String ACTION_STOP = "com.wells.audio.STOP";
+    static final String ACTION_RATE = "com.wells.audio.RATE";
+    static final String EXTRA_RATE = "rate";
     private static final String EXTRA_MEDIA_PROJECTION_DATA = "mediaProjectionData";
 
     private static final int MSG_CONNECTION_ESTABLISHED = 1;
@@ -67,12 +64,10 @@ public class RecordService extends Service {
     public void onCreate() {
         super.onCreate();
 
-        Notification notification = createNotification(false);
+        WellsNotificationManager.ensureChannel(this);
+        Notification notification = WellsNotificationManager.create(this, false);
 
-        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Wells Audio", NotificationManager.IMPORTANCE_LOW);
-        getNotificationManager().createNotificationChannel(channel);
-
-        startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+        startForeground(WellsNotificationManager.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
     }
 
     @Override
@@ -83,7 +78,7 @@ public class RecordService extends Service {
             int rate = intent.getIntExtra(EXTRA_RATE, 96);
             if (rate == 32 || rate == 96 || rate == 128) {
                 getSharedPreferences("quality", MODE_PRIVATE).edit().putInt("bitrate", rate).apply();
-                getNotificationManager().notify(NOTIFICATION_ID, createNotification(isRunning()));
+                WellsNotificationManager.manager(this).notify(WellsNotificationManager.NOTIFICATION_ID, WellsNotificationManager.create(this, isRunning()));
             }
             return START_NOT_STICKY;
         }
@@ -112,41 +107,6 @@ public class RecordService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
-    }
-
-    private Notification createNotification(boolean established) {
-        int selected = getSharedPreferences("quality", MODE_PRIVATE).getInt("bitrate", 96);
-        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Wells Audio")
-            .setContentText((established ? "Transmitindo" : "Aguardando conexão") +
-                " • PCM original • preferência " + selected + " kbps")
-            .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
-            .setOngoing(true);
-        // Android's standard notification shows at most three action buttons.
-        // Use an expanded custom view so Stop remains visible alongside all rates.
-        RemoteViews expanded = new RemoteViews(getPackageName(), R.layout.wells_audio_notification);
-        expanded.setTextViewText(R.id.audio_status,
-            (established ? "Transmitindo" : "Aguardando conexão") + " • PCM original • preferência " + selected + " kbps");
-        for (int rate : new int[]{128, 96, 32}) {
-            Intent choose = new Intent(this, RecordService.class);
-            choose.setAction(ACTION_RATE);
-            choose.putExtra(EXTRA_RATE, rate);
-            PendingIntent pending = PendingIntent.getService(this, rate, choose,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            int viewId = rate == 128 ? R.id.rate_128 : rate == 96 ? R.id.rate_96 : R.id.rate_32;
-            expanded.setTextViewText(viewId, (rate == selected ? "✓ " : "") + rate + " kbps");
-            expanded.setOnClickPendingIntent(viewId, pending);
-        }
-        Intent stop = new Intent(this, RecordService.class);
-        stop.setAction(ACTION_STOP);
-        PendingIntent stopAction = PendingIntent.getService(this, 1, stop,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        expanded.setOnClickPendingIntent(R.id.audio_stop, stopAction);
-        builder.setStyle(new Notification.DecoratedCustomViewStyle());
-        builder.setCustomBigContentView(expanded);
-        // Tapping the collapsed notification also provides a way to stop.
-        builder.setContentIntent(stopAction);
-        return builder.build();
     }
 
     private static LocalSocket connect() throws IOException {
@@ -244,10 +204,6 @@ public class RecordService extends Service {
         }
     }
 
-    private NotificationManager getNotificationManager() {
-        return (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-    }
-
     private static final class ConnectionHandler extends Handler {
 
         private RecordService service;
@@ -264,8 +220,8 @@ public class RecordService extends Service {
             }
 
             if (message.what == MSG_CONNECTION_ESTABLISHED) {
-                Notification notification = service.createNotification(true);
-                service.getNotificationManager().notify(NOTIFICATION_ID, notification);
+                Notification notification = WellsNotificationManager.create(service, true);
+                WellsNotificationManager.manager(service).notify(WellsNotificationManager.NOTIFICATION_ID, notification);
             }
         }
     }
