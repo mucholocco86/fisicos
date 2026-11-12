@@ -259,10 +259,16 @@ void AudioOutput::startRecvData(int port)
     auto audioSocket = new QTcpSocket(this);
     m_audioSocket = audioSocket;
     connect(audioSocket, &QTcpSocket::disconnected, this, [this, audioSocket]() {
-        if (m_audioSocket == audioSocket) {
-            m_audioSocket = nullptr;
+        if (m_audioSocket != audioSocket || !m_running) {
+            audioSocket->deleteLater();
+            return;
         }
-        audioSocket->deleteLater();
+        QTimer::singleShot(600, audioSocket, [this, audioSocket]() {
+            if (m_audioSocket == audioSocket && m_running
+                && audioSocket->state() == QAbstractSocket::UnconnectedState) {
+                audioSocket->connectToHost(QHostAddress::LocalHost, 28200);
+            }
+        });
     });
     connect(audioSocket, &QTcpSocket::errorOccurred, this, [this, audioSocket](QAbstractSocket::SocketError error) {
         qWarning() << "AudioOutput::audio TCP error:" << error << audioSocket->errorString();
