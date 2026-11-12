@@ -299,6 +299,10 @@ void Dialog::initUI()
     ui->decodeModeBox->removeItem(1);
 #endif
 
+    // Double-click no longer connects devices; remove the obsolete instruction.
+    // Keep the automatic refresh checkbox and the device list unchanged.
+    ui->label_10->hide();
+
     // Keep the existing controls aligned with the single-click device selection.
     connect(ui->connectedPhoneList, &QListWidget::currentRowChanged, this, [this](int row) {
         if (row < 0 || row >= ui->serialBox->count()) return;
