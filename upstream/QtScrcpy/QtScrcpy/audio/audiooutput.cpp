@@ -93,7 +93,13 @@ bool AudioOutput::runSndcpyProcess(const QString &serial, int port, bool wait)
 
 #ifdef Q_OS_WIN32
     QStringList params{serial, QString::number(port)};
-    const QString script = QDir(QCoreApplication::applicationDirPath()).filePath("sndcpy.bat");
+    const QString dir = QCoreApplication::applicationDirPath();
+    // Prefer the experimental Wells Audio when its APK is bundled. Keep
+    // sndcpy as fallback for older packages; do not touch stable releases.
+    const bool wellsAvailable = QFileInfo::exists(QDir(dir).filePath("wells-audio.apk"))
+                             && QFileInfo::exists(QDir(dir).filePath("wells_audio.bat"));
+    const QString script = QDir(dir).filePath(wellsAvailable ? "wells_audio.bat" : "sndcpy.bat");
+    qInfo() << "AudioOutput::transport:" << (wellsAvailable ? "Wells Audio PCM (experimental)" : "sndcpy");
     if (!QFileInfo::exists(script)) {
         qWarning() << "AudioOutput::missing sndcpy script:" << script;
         return false;
@@ -259,7 +265,15 @@ void AudioOutput::startRecvData(int port)
         audioSocket->deleteLater();
     });
     connect(audioSocket, &QTcpSocket::errorOccurred, this, [this, audioSocket](QAbstractSocket::SocketError error) {
-        qWarning() << "AudioOutput::sndcpy TCP error:" << error << audioSocket->errorString();
+        qWarning() << "AudioOutput::audio TCP error:" << error << audioSocket->errorString();
+        if (m_audioSocket == audioSocket && m_running) {
+            QTimer::singleShot(600, audioSocket, [this, audioSocket]() {
+                if (m_audioSocket == audioSocket && m_running
+                    && audioSocket->state() == QAbstractSocket::UnconnectedState) {
+                    audioSocket->connectToHost(QHostAddress::LocalHost, 28200);
+                }
+            });
+        }
     });
 
     connect(audioSocket, &QTcpSocket::connected, this, []() {
