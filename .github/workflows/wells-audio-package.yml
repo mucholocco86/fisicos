@@ -80,6 +80,7 @@ jobs:
           Copy-Item "$($exe.Directory.FullName)/*" dist -Recurse -Force
           Rename-Item dist/QtScrcpy.exe WellsConect.exe
           Copy-Item android-apk/app-debug.apk dist/wells-audio.apk -Force
+          Remove-Item dist/sndcpy.apk,dist/sndcpy.bat,dist/sndcpy.sh -Force -ErrorAction SilentlyContinue
           Copy-Item upstream/QtScrcpy/QtScrcpy/sndcpy/wells_audio.bat dist/wells_audio.bat -Force
           Copy-Item upstream/QtScrcpy/config dist/config -Recurse -Force
           Copy-Item upstream/QtScrcpy/keymap dist/keymap -Recurse -Force
@@ -91,7 +92,7 @@ jobs:
           Copy-Item $server.FullName dist/scrcpy-server
           & "$env:QT_ROOT_DIR/bin/windeployqt.exe" --release --compiler-runtime dist/WellsConect.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($file in @('WellsConect.exe','wells-audio.apk','wells_audio.bat','sndcpy.apk','sndcpy.bat','adb.exe','scrcpy-server','Qt6Multimedia.dll')) {
+          foreach ($file in @('WellsConect.exe','wells-audio.apk','wells_audio.bat','adb.exe','scrcpy-server','Qt6Multimedia.dll')) {
             if (!(Test-Path "dist/$file")) { throw "Missing: $file" }
           }
           Get-ChildItem dist -Recurse -File -Include *.pdb,*.lib,*.exp | Remove-Item -Force
