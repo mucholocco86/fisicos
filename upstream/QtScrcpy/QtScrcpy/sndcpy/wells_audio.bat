@@ -10,13 +10,10 @@ if not exist "wells-audio.apk" (
   exit /b 2
 )
 %ADB% %SERIAL% wait-for-device || exit /b 3
-echo Checking Wells Audio installation...
-rem Use adb itself to check the package; avoid findstr (missing from some PATH environments).
-%ADB% %SERIAL% shell pm path com.wells.audio
-if errorlevel 1 (
-  echo Installing Wells Audio...
-  %ADB% %SERIAL% install -r wells-audio.apk || exit /b 4
-)
+echo Installing or updating Wells Audio...
+rem adb shell pm path may return exit code 0 even if the package is absent.
+rem ADB install -r works for both first installation and same-key updates.
+%ADB% %SERIAL% install -r wells-audio.apk || exit /b 4
 %ADB% %SERIAL% forward tcp:%PORT% localabstract:wells_audio || exit /b 5
 echo.
 echo WELLS AUDIO: On the phone, open Wells Audio, enable Transmitir audio,
