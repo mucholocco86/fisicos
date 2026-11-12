@@ -2,7 +2,6 @@ package com.wells.audio;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.projection.MediaProjectionManager;
@@ -10,53 +9,42 @@ import android.media.projection.MediaProjectionConfig;
 import android.os.Build;
 import android.os.Bundle;
 
-/**
- * No settings panel: Windows owns start, Android notification owns controls.
- * MediaProjection consent is Android-controlled and cannot be silently bypassed.
+/** Adapted from rom1v/sndcpy MainActivity.java (MIT).
+ * Same one-shot entrypoint: request capture, start RecordService, finish.
  */
 public final class MainActivity extends Activity {
-    private static final int REQUEST_CAPTURE = 4001;
-    private static final int REQUEST_AUDIO_PERMISSION = 4002;
-    private boolean captureRequested;
+    private static final int REQUEST_CODE_PERMISSION_AUDIO = 1;
+    private static final int REQUEST_CODE_START_CAPTURE = 2;
 
-    private void requestCapture() {
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_AUDIO_PERMISSION);
-            return;
-        }
-        MediaProjectionManager manager = (MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-        Intent request;
-        if (Build.VERSION.SDK_INT >= 34) {
-            // Default display only: avoids the single-app/full-display picker.
-            // Android still presents the mandatory user-consent dialog.
-            request = manager.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay());
-        } else {
-            request = manager.createScreenCaptureIntent();
-        }
-        startActivityForResult(request, REQUEST_CAPTURE);
-    }
-
-    @Override public void onCreate(Bundle state) {
+    @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
-        if (state == null) requestCapture();
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_PERMISSION_AUDIO);
+        } else {
+            startCaptureRequest();
+        }
     }
 
-    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
-        super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode == REQUEST_AUDIO_PERMISSION) {
-            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) requestCapture();
+    private void startCaptureRequest() {
+        MediaProjectionManager manager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+        Intent request = Build.VERSION.SDK_INT >= 34
+            ? manager.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
+            : manager.createScreenCaptureIntent();
+        startActivityForResult(request, REQUEST_CODE_START_CAPTURE);
+    }
+
+    @Override public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(code, permissions, results);
+        if (code == REQUEST_CODE_PERMISSION_AUDIO) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) startCaptureRequest();
             else finish();
         }
     }
 
-    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CAPTURE && resultCode == RESULT_OK && data != null) {
-            Intent start = new Intent(this, AudioCaptureService.class);
-            start.setAction(AudioCaptureService.ACTION_START);
-            start.putExtra(AudioCaptureService.EXTRA_RESULT_CODE, resultCode);
-            start.putExtra(AudioCaptureService.EXTRA_RESULT_DATA, data);
-            startForegroundService(start);
+    @Override public void onActivityResult(int code, int result, Intent data) {
+        super.onActivityResult(code, result, data);
+        if (code == REQUEST_CODE_START_CAPTURE && result == RESULT_OK && data != null) {
+            RecordService.start(this, data);
         }
         finish();
     }
