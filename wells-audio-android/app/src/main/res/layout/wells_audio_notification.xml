@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:padding="12dp">
+    <TextView android:id="@+id/audio_status" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:textSize="14sp" android:maxLines="2"/>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/rate_128" android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="48dp" android:gravity="center" android:text="128 kbps" android:textSize="12sp"/>
+        <TextView android:id="@+id/rate_96" android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="48dp" android:gravity="center" android:text="96 kbps" android:textSize="12sp"/>
+        <TextView android:id="@+id/rate_32" android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="48dp" android:gravity="center" android:text="32 kbps" android:textSize="12sp"/>
+        <TextView android:id="@+id/audio_stop" android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="48dp" android:gravity="center" android:text="Parar" android:textSize="12sp"/>
+    </LinearLayout>
+</LinearLayout>
