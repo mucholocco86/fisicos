@@ -2,9 +2,12 @@ package com.wells.audio;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.net.Uri;
+import android.provider.Settings;
 import android.content.pm.PackageManager;
 import android.media.projection.MediaProjectionManager;
 import android.media.projection.MediaProjectionConfig;
@@ -44,6 +47,23 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void showNotificationPermissionFallback() {
+        // Android may suppress the system prompt after a prior denial.
+        // Give the user a clear way to enable the controls without blocking audio.
+        new AlertDialog.Builder(this)
+            .setTitle("Notificações do Wells Audio")
+            .setMessage("Para mostrar os controles de áudio na barra de notificações, permita as notificações do Wells Audio.")
+            .setPositiveButton("Configurar", (dialog, which) -> {
+                Intent settings = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                settings.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                startActivity(settings);
+                finish();
+            })
+            .setNegativeButton("Continuar sem notificações", (dialog, which) -> startCaptureRequest())
+            .setCancelable(false)
+            .show();
+    }
+
     private void startCaptureRequest() {
         MediaProjectionManager manager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
         Intent request = Build.VERSION.SDK_INT >= 34
@@ -58,9 +78,13 @@ public final class MainActivity extends Activity {
             if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) requestNotificationPermissionThenCapture();
             else finish();
         } else if (code == REQUEST_CODE_PERMISSION_NOTIFICATIONS) {
-            // Notification permission is optional for audio capture. Continue
-            // even if denied; Android may hide the notification action controls.
-            startCaptureRequest();
+            if (Build.VERSION.SDK_INT >= 33
+                    && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED) {
+                showNotificationPermissionFallback();
+            } else {
+                startCaptureRequest();
+            }
         }
     }
 
