@@ -49,6 +49,20 @@ jobs:
         with:
           name: wells-audio-apk
           path: android-apk
+      - name: Embed official Wells Conect icon
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check Pillow
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          @'
+          from pathlib import Path
+          from PIL import Image
+          res=Path("upstream/QtScrcpy/QtScrcpy/res")
+          image=Image.open(res/"wells_connect_icon.png").convert("RGBA")
+          image.resize((256,256), Image.Resampling.LANCZOS).save(res/"QtScrcpy.ico",format="ICO",sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
+          image.save(res/"image"/"tray"/"logo.png")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Configure and compile Wells Conect
         shell: pwsh
         run: |
