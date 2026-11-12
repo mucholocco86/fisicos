@@ -52,6 +52,9 @@ public class RecordService extends Service {
     private MediaProjectionManager mediaProjectionManager;
     private MediaProjection mediaProjection;
     private Thread recorderThread;
+    private volatile boolean stopping;
+    private volatile LocalSocket activeSocket;
+    private volatile AudioRecord activeRecorder;
 
     public static void start(Context context, Intent data) {
         Intent intent = new Intent(context, RecordService.class);
@@ -85,6 +88,7 @@ public class RecordService extends Service {
             return START_NOT_STICKY;
         }
         if (ACTION_STOP.equals(action)) {
+            stopRecording();
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -180,17 +184,21 @@ public class RecordService extends Service {
 
     private void startRecording() {
         final AudioRecord recorder = createAudioRecord(mediaProjection);
+        stopping = false;
+        activeRecorder = recorder;
 
         recorderThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 try (LocalSocket socket = connect()) {
+                    activeSocket = socket;
+                    if (stopping) return;
                     handler.sendEmptyMessage(MSG_CONNECTION_ESTABLISHED);
 
                     recorder.startRecording();
                     int BUFFER_MS = 15; // do not buffer more than BUFFER_MS milliseconds
                     byte[] buf = new byte[SAMPLE_RATE * CHANNELS * 2 * BUFFER_MS / 1000];
-                    while (true) {
+                    while (!stopping) {
                         int r = recorder.read(buf, 0, buf.length);
                         if (r < 0) break;
                         if (r > 0) socket.getOutputStream().write(buf, 0, r);
@@ -200,6 +208,8 @@ public class RecordService extends Service {
                 } finally {
                     try { recorder.stop(); } catch (IllegalStateException ignored) {}
                     recorder.release();
+                    activeRecorder = null;
+                    activeSocket = null;
                     stopSelf();
                 }
             }
@@ -215,6 +225,19 @@ public class RecordService extends Service {
     public void onDestroy() {
         super.onDestroy();
         stopForeground(true);
+        stopRecording();
+    }
+
+    private void stopRecording() {
+        stopping = true;
+        LocalSocket socket = activeSocket;
+        if (socket != null) {
+            try { socket.close(); } catch (IOException ignored) {}
+        }
+        AudioRecord recorder = activeRecorder;
+        if (recorder != null) {
+            try { recorder.stop(); } catch (IllegalStateException ignored) {}
+        }
         if (recorderThread != null) {
             recorderThread.interrupt();
             recorderThread = null;
